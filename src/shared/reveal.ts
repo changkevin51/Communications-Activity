@@ -65,6 +65,7 @@ export type LiveCounts = { joined: number; started: number; playing: number; rat
 
 export type ScreenState = {
   rev: number;
+  mode: 'live' | 'test';
   serverNow: number;
   changedAt: number;
   scene: SceneId;
@@ -87,7 +88,6 @@ export type StripItem = { scene: SceneId; beats: number; skip: string | null };
 export type PresenterView = ScreenState & {
   sessionId: string;
   code: string;
-  mode: 'live' | 'test';
   phase: 'open' | 'released' | 'closed';
   auto: boolean;
   screenKey: string;

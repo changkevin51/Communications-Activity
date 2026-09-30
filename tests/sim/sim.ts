@@ -12,6 +12,7 @@ const { values } = parseArgs({
     refresh: { type: 'string', default: '0.1' },
     effect: { type: 'boolean', default: false },
     seed: { type: 'string', default: String(Date.now()) },
+    reveal: { type: 'boolean', default: false },
   },
 });
 const N = Number(values.n);
@@ -111,6 +112,7 @@ async function main() {
   console.log(`generated share ${((g.exposures / Math.max(1, g.exposures + g.realExposures)) * 100).toFixed(1)}% (${g.count} generated)`);
   console.log(`ack latency p50=${pct(lat, 0.5)}ms p95=${pct(lat, 0.95)}ms over ${lat.length} acks`);
   if (lastView.length) console.log(`release fan-out ${Math.round(Math.max(...lastView) - releaseAt)}ms`);
+  if (values.reveal) await reveal(host, id, code);
   for (const p of players) p.close();
   host.close();
   if (errors.length) {
@@ -118,6 +120,31 @@ async function main() {
     process.exit(1);
   }
   console.log('sim ok');
+}
+
+async function reveal(host: ReturnType<typeof hostClient>, id: string, code: string) {
+  const lease = 'lease-sim00001';
+  type V = { rev: number; scene: string; beat: number; screenKey: string; health: { n: { eligible: number; paired: number }; pattern: string } | null };
+  const open = await hostCall<{ view: V }>(host, 'pres.open', { sessionId: id, leaseId: lease });
+  if (!open.ok) throw new Error(`pres.open failed: ${open.reason}`);
+  let v = open.view;
+  const cmd = async (c: Record<string, unknown>) => {
+    const r = await timed(() => hostCall<{ view: V; changed: boolean }>(host, 'pres.cmd', { sessionId: id, leaseId: lease, cmd: { ...c, rev: v.rev } }));
+    if (!r.ok) throw new Error(`${String(c.t)} failed: ${r.reason}`);
+    v = r.view;
+    return r.changed;
+  };
+  await cmd({ t: 'take' });
+  await cmd({ t: 'begin', confirm: 'BEGIN' });
+  let beats = 1;
+  while (await cmd({ t: 'next' })) {
+    beats++;
+    await sleep(20);
+  }
+  if (v.scene !== 'end') errors.push(`reveal stopped at ${v.scene}`);
+  if (v.health?.n.eligible !== N) errors.push(`reveal eligible ${v.health?.n.eligible}/${N}`);
+  console.log(`reveal ${code}: ${beats} beats, pattern ${v.health?.pattern}, paired ${v.health?.n.paired}`);
+  console.log(`projector: ${url}/screen/${code}#k=${v.screenKey}`);
 }
 
 main().catch((e) => {

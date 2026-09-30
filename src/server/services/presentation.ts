@@ -271,6 +271,7 @@ export function screenState(db: Db, sessionId: string, now: number): ScreenState
   const snap = snapshotData(db, row.snapshot_id);
   const st: ScreenState = {
     rev: row.rev,
+    mode: s.mode,
     serverNow: now,
     changedAt: row.changed_at,
     scene: row.scene,
@@ -307,7 +308,6 @@ export function presenterView(db: Db, sessionId: string, now: number, conn: { ph
     ...st,
     sessionId: s.id,
     code: s.code,
-    mode: s.mode,
     phase: s.phase,
     auto: !!row.auto,
     screenKey: row.screen_key,

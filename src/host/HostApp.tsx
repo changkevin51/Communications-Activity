@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import type { Socket } from 'socket.io-client';
 import { call, connectHost, type SessionItem } from './api';
 import { SessionPanel } from './SessionPanel';
+import { Presenter } from './presenter/Presenter';
+
+const presentId = () => /present=([A-Za-z0-9_-]+)/.exec(location.hash)?.[1] ?? null;
 
 const KEY = 'ss.host.key';
 
@@ -11,6 +14,12 @@ export function HostApp() {
   const [error, setError] = useState('');
   const [sessions, setSessions] = useState<SessionItem[]>([]);
   const [active, setActive] = useState<string | null>(null);
+  const [present, setPresent] = useState<string | null>(presentId);
+  useEffect(() => {
+    const on = () => setPresent(presentId());
+    window.addEventListener('hashchange', on);
+    return () => window.removeEventListener('hashchange', on);
+  }, []);
 
   const refresh = async (s: Socket) => {
     const r = await call<{ sessions: SessionItem[] }>(s, 'sessions');
@@ -51,6 +60,8 @@ export function HostApp() {
       </div>
     );
   }
+
+  if (present) return <Presenter socket={socket} sessionId={present} onExit={() => (history.replaceState(null, '', location.pathname), setActive(present), setPresent(null))} />;
 
   return (
     <div className="wrap">

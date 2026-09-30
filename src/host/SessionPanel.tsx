@@ -58,6 +58,7 @@ export function SessionPanel({ socket, sessionId, adminKey, onDeleted, onChanged
         <div className="row" style={{ justifyContent: 'space-between' }}>
           <h2 className="mono">{s.code} <span className="muted">{s.label} · {s.mode} · {s.phase}</span></h2>
           <button onClick={() => setShowQr(true)}>Show QR</button>
+          <button className="primary" data-testid="present" onClick={() => (location.hash = `present=${sessionId}`)}>Present</button>
         </div>
         <div className="row">
           <span className="mono">{joinUrl}</span>
