@@ -1,0 +1,2 @@
+export const CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+export const CODE_RE = new RegExp(`^[${CODE_ALPHABET}]{4}$`);
