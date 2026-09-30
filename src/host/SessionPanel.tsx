@@ -31,6 +31,12 @@ export function SessionPanel({ socket, sessionId, adminKey, onDeleted, onChanged
     };
   }, [socket, sessionId]);
 
+  const total = view?.total;
+  const phase = view?.session.phase;
+  useEffect(() => {
+    if (total !== undefined) onChanged();
+  }, [total, phase]);
+
   const joinUrl = view ? `${location.origin}/${view.session.code}` : '';
   useEffect(() => {
     if (joinUrl) void QRCode.toDataURL(joinUrl, { margin: 2, scale: 12, errorCorrectionLevel: 'M' }).then(setQr);
