@@ -1,3 +1,5 @@
+import { ROLES, isPart3, type Part3Flags, type PresenterQuestion, type ScreenQuestion } from './discussion';
+
 export const REVEAL_VERSION = 'reveal@1';
 
 export type WorldKey = 'up' | 'neutral' | 'down';
@@ -5,7 +7,8 @@ export const WORLDS: readonly WorldKey[] = ['up', 'neutral', 'down'];
 
 export type SceneId =
   | 'lobby' | 'playing' | 'hold' | 'onegame' | 'selfrating' | 'cut' | 'samescore'
-  | 'worlds' | 'movement' | 'compare' | 'mechanism' | 'concept' | 'end';
+  | 'worlds' | 'movement' | 'compare' | 'mechanism' | 'concept'
+  | 'bridge' | 'felt' | 'switch' | 'landscape' | 'mirrors' | 'chooser' | 'circle' | 'end';
 
 export type Source = 'live' | 'test' | 'demo';
 export type Motion = 'full' | 'calm' | 'off';
@@ -59,7 +62,7 @@ export type SnapshotRow = {
 };
 
 export type ConceptQuote = { text: string; source: string; page: string };
-export type Concept = { title: string; quotes: ConceptQuote[] };
+export type Concept = { title: string; quotes: ConceptQuote[]; slots?: Partial<Record<string, ConceptQuote>> };
 
 export type LiveCounts = { joined: number; started: number; playing: number; rating: number; done: number; code: string };
 
@@ -81,6 +84,10 @@ export type ScreenState = {
   live?: LiveCounts;
   concept?: Concept;
   late?: number;
+  q?: ScreenQuestion;
+  hide?: boolean;
+  focus?: number | null;
+  slot?: ConceptQuote | null;
 };
 
 export type StripItem = { scene: SceneId; beats: number; skip: string | null };
@@ -103,6 +110,10 @@ export type PresenterView = ScreenState & {
   strip: StripItem[];
   conceptConfig: Concept;
   notes: string[];
+  question: PresenterQuestion | null;
+  flags: Part3Flags;
+  phones: 'auto' | 'passive';
+  part3At: number | null;
 };
 
 export type SnapshotCounts = {
@@ -132,6 +143,13 @@ export const SCENES: readonly SceneSpec[] = [
   { id: 'compare', beats: 3, needsSnapshot: true, optional: false, title: 'Compare' },
   { id: 'mechanism', beats: 2, needsSnapshot: true, optional: false, title: 'Mechanism' },
   { id: 'concept', beats: 1, needsSnapshot: false, optional: true, title: 'Concept' },
+  { id: 'bridge', beats: 1, needsSnapshot: true, optional: false, title: 'Bridge' },
+  { id: 'felt', beats: 4, needsSnapshot: true, optional: false, title: 'Did it work?' },
+  { id: 'switch', beats: 4, needsSnapshot: true, optional: false, title: 'Room switch' },
+  { id: 'landscape', beats: 3, needsSnapshot: true, optional: true, title: 'Out there' },
+  { id: 'mirrors', beats: 5, needsSnapshot: true, optional: false, title: 'Two mirrors' },
+  { id: 'chooser', beats: 4, needsSnapshot: true, optional: false, title: 'Who chose?' },
+  { id: 'circle', beats: 3, needsSnapshot: true, optional: false, title: 'Full circle' },
   { id: 'end', beats: 1, needsSnapshot: false, optional: false, title: 'End' },
 ];
 
@@ -140,7 +158,12 @@ export const isPreReveal = (s: SceneId) => PRE_REVEAL.includes(s);
 export const sceneIndex = (s: SceneId) => SCENES.findIndex((x) => x.id === s);
 export const sceneSpec = (s: SceneId) => SCENES[sceneIndex(s)];
 
-export type NavCtx = { data: RevealData | null; concept: Concept };
+export type NavCtx = { data: RevealData | null; concept: Concept; flags?: Part3Flags };
+
+export const slotQuote = (c: Concept, scene: SceneId): ConceptQuote | null => {
+  const q = c.slots?.[scene];
+  return q && q.text.trim() ? q : null;
+};
 
 export function beatsFor(scene: SceneId, ctx: NavCtx): number {
   const d = ctx.data;
@@ -152,6 +175,10 @@ export function beatsFor(scene: SceneId, ctx: NavCtx): number {
     case 'concept':
       return Math.max(1, Math.min(3, ctx.concept.quotes.length));
     default:
+      if (isPart3(scene)) {
+        const roles = ROLES[scene];
+        return roles[roles.length - 1] === 'concept' && !slotQuote(ctx.concept, scene) ? roles.length - 1 : roles.length;
+      }
       return sceneSpec(scene).beats;
   }
 }
@@ -159,6 +186,7 @@ export function beatsFor(scene: SceneId, ctx: NavCtx): number {
 export function skipReason(scene: SceneId, ctx: NavCtx): string | null {
   if (scene === 'samescore' && !ctx.data?.samescore) return 'no players to build the example from';
   if (scene === 'concept' && !ctx.concept.quotes.some((q) => q.text.trim())) return 'no quote configured';
+  if (scene === 'landscape' && !ctx.flags?.landscape) return 'optional — turned off';
   return null;
 }
 

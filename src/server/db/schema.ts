@@ -117,4 +117,53 @@ CREATE TABLE presentation_log (
   cmd TEXT NOT NULL, from_scene TEXT, from_beat INTEGER, to_scene TEXT, to_beat INTEGER, rev INTEGER NOT NULL
 );
 `,
+  `
+ALTER TABLE presentations ADD COLUMN phones TEXT NOT NULL DEFAULT 'auto' CHECK (phones IN ('auto','passive'));
+ALTER TABLE presentations ADD COLUMN hide INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE presentations ADD COLUMN focus INTEGER;
+ALTER TABLE presentations ADD COLUMN flags_json TEXT NOT NULL DEFAULT '{}';
+ALTER TABLE presentations ADD COLUMN part3_at INTEGER;
+
+CREATE TABLE prompt_results (
+  id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  prompt TEXT NOT NULL,
+  run INTEGER NOT NULL,
+  version TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  data_json TEXT NOT NULL,
+  hash TEXT NOT NULL,
+  UNIQUE (session_id, prompt, run)
+);
+CREATE TRIGGER prompt_results_immutable BEFORE UPDATE ON prompt_results
+BEGIN SELECT RAISE(ABORT, 'prompt_results are immutable'); END;
+
+CREATE TABLE prompt_runs (
+  session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  prompt TEXT NOT NULL,
+  run INTEGER NOT NULL,
+  phase TEXT NOT NULL CHECK (phase IN ('open','frozen')),
+  source TEXT NOT NULL CHECK (source IN ('live','test','demo')),
+  opened_at INTEGER NOT NULL,
+  frozen_at INTEGER,
+  result_id TEXT REFERENCES prompt_results(id) ON DELETE SET NULL,
+  PRIMARY KEY (session_id, prompt, run)
+);
+CREATE TRIGGER prompt_runs_demo_guard BEFORE INSERT ON prompt_runs
+WHEN NEW.source = 'demo' AND (SELECT mode FROM sessions WHERE id = NEW.session_id) = 'live'
+BEGIN SELECT RAISE(ABORT, 'demo data on live session'); END;
+
+CREATE TABLE responses (
+  session_id TEXT NOT NULL,
+  prompt TEXT NOT NULL,
+  run INTEGER NOT NULL,
+  participant_id TEXT NOT NULL REFERENCES participants(id) ON DELETE CASCADE,
+  rid TEXT NOT NULL,
+  value_json TEXT NOT NULL,
+  at INTEGER NOT NULL,
+  late INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (session_id, prompt, run, participant_id),
+  FOREIGN KEY (session_id, prompt, run) REFERENCES prompt_runs(session_id, prompt, run) ON DELETE CASCADE
+);
+`,
 ];

@@ -68,6 +68,8 @@ export function targetsFor(scene: SceneId, beat: number, d: RevealData | null): 
       return d.n.paired < 3 ? hidden(0.1) : movement(d, beat);
     case 'mechanism':
       return hidden(0.06);
+    case 'circle':
+      return beat === 0 ? swarm(d, 0.92) : swarm(d, beat === 1 ? 0.92 : 0.2, 720, 420, color);
     default:
       return hidden(0);
   }

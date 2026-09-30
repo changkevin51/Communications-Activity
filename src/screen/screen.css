@@ -38,3 +38,29 @@ html, body.screen-body { margin: 0; height: 100%; background: #000; color: var(-
 @media (prefers-reduced-motion: reduce) { .p-done, .p-rating { transition: none; } }
 .screen-msg { display: flex; flex-direction: column; justify-content: center; height: 100vh; padding: 0 8vw; background: var(--ink); }
 .screen-msg p { font-size: 24px; color: var(--mute); }
+
+/* Part 3 */
+.scene-p3 .head { max-width: 1680px; }
+.p3-viz { position: absolute; left: 120px; right: 120px; top: 400px; bottom: 120px; z-index: 2; }
+.p3-bars { display: flex; flex-direction: column; gap: 26px; }
+.p3-bar { display: grid; grid-template-columns: 420px 1fr 140px; align-items: center; gap: 28px; transition: opacity .4s; }
+.p3-bar.dim, .p3-col.dim { opacity: .3; }
+.p3-bar-label { font-size: 30px; }
+.p3-bar-track { height: 54px; background: rgba(244, 241, 234, .08); }
+.p3-bar-track span { display: block; height: 100%; background: var(--paper); transition: width .9s cubic-bezier(.2, .8, .2, 1); }
+.motion-off .p3-bar-track span, .motion-off .p3-iqr, .motion-off .p3-med { transition: none; }
+.p3-bar-val { font-size: 40px; text-align: right; }
+.p3-rooms { position: relative; height: 100%; display: flex; gap: 60px; }
+.p3-pin { font-family: var(--display); font-size: 170px; font-weight: 800; align-self: center; width: 360px; }
+.p3-cols { flex: 1; display: flex; gap: 60px; }
+.p3-col { flex: 1; display: flex; flex-direction: column; align-items: center; transition: opacity .4s; }
+.p3-col-track { position: relative; width: 120px; flex: 1; background: rgba(244, 241, 234, .06); }
+.p3-iqr { position: absolute; left: 0; right: 0; background: rgba(124, 200, 255, .35); transition: all .9s; }
+.p3-med { position: absolute; left: -12px; right: -12px; height: 8px; background: var(--paper); transition: bottom .9s; }
+.p3-col-val { font-size: 44px; margin-top: 14px; }
+.p3-col-label { font-size: 22px; text-align: center; margin-top: 6px; }
+.p3-col-sub { font-size: 18px; opacity: .6; margin-top: 4px; }
+.p3-pipe { display: flex; gap: 30px; align-items: stretch; flex-wrap: wrap; }
+.p3-box { flex: 1; min-height: 220px; border: 2px solid var(--paper); display: flex; align-items: center; justify-content: center; padding: 20px; font-size: 32px; text-align: center; font-family: var(--display); font-weight: 700; }
+.p3-box.swap { background: var(--paper); color: #0B0C10; }
+.p3-examples { width: 100%; font-size: 30px; margin-top: 30px; opacity: .85; }

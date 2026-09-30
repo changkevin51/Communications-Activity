@@ -54,9 +54,10 @@ test('walks every scene and beat of a rehearsal; reload restores; hold blacks ou
   expect(page.url()).not.toContain('#k=');
 
   await s.cmd({ t: 'demo', scenario: 'expected', n: 60, seed: 'e2e' });
+  await s.cmd({ t: 'flag', key: 'landscape', on: true });
   await expect(page.getByTestId('watermark')).toHaveText('REHEARSAL · SYNTHETIC DATA');
   const seen: string[] = [];
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < 120; i++) {
     const v = s.view();
     await settled(page, v);
     await sane(page);
@@ -69,7 +70,7 @@ test('walks every scene and beat of a rehearsal; reload restores; hold blacks ou
     const r = await s.cmd({ t: 'next' });
     if (!r.changed) break;
   }
-  for (const sc of ['onegame', 'selfrating', 'cut', 'samescore', 'worlds', 'movement', 'compare', 'mechanism', 'end']) expect(seen.some((x) => x.startsWith(sc))).toBe(true);
+  for (const sc of ['onegame', 'selfrating', 'cut', 'samescore', 'worlds', 'movement', 'compare', 'mechanism', 'bridge', 'felt', 'switch', 'landscape', 'mirrors', 'chooser', 'circle', 'end']) expect(seen.some((x) => x.startsWith(sc))).toBe(true);
   await s.cmd({ t: 'hold', on: true });
   await expect(page.getByTestId('hold')).toBeVisible();
   await s.cmd({ t: 'hold', on: false });
@@ -87,11 +88,13 @@ test('adaptive scenarios render without broken values in animated and plain mode
   const s = await setup(baseURL!, 'sweep');
   await page.goto(`/screen/${s.code}#k=${encodeURIComponent(s.key)}`);
   await expect(page.locator('.stage')).toHaveAttribute('data-scene', 'lobby');
-  for (const scenario of ['noisy', 'none', 'reversed', 'small', 'ties', 'imbalanced', 'lateheavy']) {
-    await s.cmd({ t: 'demo', scenario, n: scenario === 'small' ? 6 : 40, seed: scenario });
+  const profiles = ['expected', 'onesided', 'split', 'low', 'unexpected', 'optionalzero', 'expected'];
+  for (const [k, scenario] of ['noisy', 'none', 'reversed', 'small', 'ties', 'imbalanced', 'lateheavy'].entries()) {
+    await s.cmd({ t: 'demo', scenario, n: scenario === 'small' ? 6 : 40, seed: scenario, profile: profiles[k] });
+    if (!s.view().flags.landscape) await s.cmd({ t: 'flag', key: 'landscape', on: true });
     for (const plain of [false, true]) {
       if (s.view().plain !== plain) await s.cmd({ t: 'plain', on: plain });
-      for (const scene of ['onegame', 'selfrating', 'worlds', 'movement', 'compare', 'mechanism']) {
+      for (const scene of ['onegame', 'selfrating', 'worlds', 'movement', 'compare', 'mechanism', 'felt', 'switch', 'landscape', 'mirrors', 'chooser', 'circle']) {
         await s.cmd({ t: 'goto', scene, beat: 9 });
         await settled(page, s.view());
         await sane(page);

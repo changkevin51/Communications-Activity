@@ -5,6 +5,7 @@ import { STAGES, type Stage } from '../../shared/flow';
 import { SessionConfigSchema, type SessionConfig } from '../config';
 import { bumpRev, getSession, logEvent, newId, newSeed, type SessionRow } from '../db/repo';
 import type { Condition, Thresholds } from '../assign/thresholds';
+import { clearPrompts } from './discussion';
 
 export type SessionSummary = Pick<SessionRow, 'id' | 'code' | 'label' | 'mode' | 'phase' | 'created_at'> & { players: number };
 
@@ -53,6 +54,7 @@ export function reopenSession(db: Db, id: string) {
 
 export function resetSession(db: Db, id: string) {
   db.tx(() => {
+    clearPrompts(db, id);
     db.run('DELETE FROM presentations WHERE session_id = ?', id);
     db.run('DELETE FROM presentation_log WHERE session_id = ?', id);
     db.run('DELETE FROM reveal_snapshots WHERE session_id = ?', id);
@@ -69,6 +71,7 @@ export function resetSession(db: Db, id: string) {
 export function deleteSession(db: Db, id: string) {
   db.tx(() => {
     db.run('DELETE FROM events WHERE session_id = ?', id);
+    clearPrompts(db, id);
     db.run('DELETE FROM presentations WHERE session_id = ?', id);
     db.run('DELETE FROM sessions WHERE id = ?', id);
   });

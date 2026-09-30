@@ -7,8 +7,10 @@ import { Field } from './Field';
 import { Decor } from './Decor';
 import { targetsFor } from './targets';
 import { plainFrame } from './plain';
+import { Part3Viz } from './Part3';
+import { isPart3 } from '../shared/discussion';
 
-export type StageState = Pick<ScreenState, 'scene' | 'beat' | 'nonce' | 'hold' | 'plain' | 'motion' | 'source' | 'mode' | 'live' | 'concept' | 'late'>;
+export type StageState = Pick<ScreenState, 'scene' | 'beat' | 'nonce' | 'hold' | 'plain' | 'motion' | 'source' | 'mode' | 'live' | 'concept' | 'late' | 'q' | 'hide' | 'focus' | 'slot'>;
 
 const DECOR_SCENES = ['onegame', 'selfrating', 'samescore', 'worlds', 'movement', 'compare'];
 
@@ -87,6 +89,22 @@ function Frame({ st, d, origin, still }: { st: StageState; d: RevealData | null;
           <span style={{ width: `${((l?.rating ?? 0) / total) * 100}%` }} className="p-rating" />
         </div>
         <div className="lines mono">{pf.lines[0]}</div>
+      </div>
+    );
+  }
+  if (isPart3(st.scene)) {
+    const viz = st.plain ? null : <Part3Viz st={st} d={d} />;
+    const showLines = !viz || st.scene === 'felt';
+    return (
+      <div className={`frame scene-p3 scene-${st.scene} ${viz || st.scene === 'circle' ? '' : 'text-only'}`}>
+        {!st.plain && st.scene === 'circle' && <Field targets={targets} motion={st.motion} still={still} replay={st.nonce} />}
+        <div className="head">
+          {pf.kicker && <div className="kicker">{pf.kicker}</div>}
+          <div className={viz || st.scene === 'circle' ? 'h-mid' : 'h-big'} data-testid="headline">{pf.headline}</div>
+          {showLines && pf.lines.filter((l) => !viz || l.startsWith('What the ratings')).map((l, i) => <div key={i} className="lines">{l}</div>)}
+          {!showLines && pf.lines.length > 0 && st.scene !== 'chooser' && <div className="caption">{`${st.q?.result?.n ?? 0} answered`}</div>}
+        </div>
+        {viz && <div className="p3-viz">{viz}</div>}
       </div>
     );
   }

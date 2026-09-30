@@ -5,7 +5,7 @@ import { SCENES, isPreReveal, nextPos, sceneSpec, type NavCtx, type PresenterVie
 import { Stage } from '../../screen/Stage';
 import { call } from '../api';
 import { usePresenter, type Cmd } from './usePresenter';
-import { Rehearsal, ConceptEditor, HoldButton } from './Panels';
+import { Rehearsal, ConceptEditor, HoldButton, QuestionPanel } from './Panels';
 import '../../screen/screen.css';
 
 const SHORTCUTS: [string, string][] = [
@@ -66,7 +66,7 @@ export function Presenter({ socket, sessionId, onExit }: { socket: Socket; sessi
     return () => window.removeEventListener('keydown', onKey);
   }, [view, send, setToast]);
 
-  const ctx: NavCtx | null = useMemo(() => (view ? { data, concept: view.conceptConfig } : null), [view, data]);
+  const ctx: NavCtx | null = useMemo(() => (view ? { data, concept: view.conceptConfig, flags: view.flags } : null), [view, data]);
   const next = view && ctx ? nextPos({ scene: view.scene, beat: view.beat }, ctx) : null;
 
   if (!view || !ctx) return <div className="wrap">Opening presenter…</div>;
@@ -171,7 +171,7 @@ export function Presenter({ socket, sessionId, onExit }: { socket: Socket; sessi
           <div className="row">
             <button onClick={() => void navigator.clipboard?.writeText(screenUrl)}>Copy link</button>
             <a href={screenUrl} target="_blank" rel="noreferrer"><button>Open projector</button></a>
-            <button onClick={() => confirm('Rotate the projector key? Open projectors will disconnect.') && void call(socket, 'pres.rotateKey', { sessionId })}>Rotate key</button>
+            <button disabled={!controlling} onClick={() => confirm('Rotate the projector key? Open projectors will disconnect.') && void call(socket, 'pres.rotateKey', { sessionId, leaseId: lease })}>Rotate key</button>
           </div>
         </div>
         <div className="panel">
@@ -179,8 +179,9 @@ export function Presenter({ socket, sessionId, onExit }: { socket: Socket; sessi
           <div className="muted">Scan to control from a phone (log in with the admin key, then Take control).</div>
           {qr && <img src={qr} alt="Presenter console QR" width={140} height={140} />}
         </div>
-        {view.mode === 'test' && <Rehearsal disabled={!controlling} onRun={(scenario, n, seed) => void send({ t: 'demo', scenario, n, seed })} />}
-        <ConceptEditor socket={socket} sessionId={sessionId} initial={view.conceptConfig} />
+        {!pre && <QuestionPanel view={view} disabled={!controlling} send={send} />}
+        {view.mode === 'test' && <Rehearsal disabled={!controlling} onRun={(scenario, n, seed, profile) => void send({ t: 'demo', scenario, n, seed, profile })} />}
+        <ConceptEditor socket={socket} sessionId={sessionId} leaseId={lease} initial={view.conceptConfig} />
       </div>
       {help && (
         <div className="overlay" onClick={() => setHelp(false)} data-testid="help">

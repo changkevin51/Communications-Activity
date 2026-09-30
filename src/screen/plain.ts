@@ -1,13 +1,16 @@
 import type { RevealData, SceneId, ScreenState } from '../shared/reveal';
 import { WORLDS } from '../shared/reveal';
+import { isPart3 } from '../shared/discussion';
+import { part3Frame } from './part3Copy';
 import { WORLD_ACADEMIC, WORLD_PLAIN, compareCopy, fmt, mechanismLine, onegameCaption, selfRatingCaption, worldsCaption } from '../shared/revealCopy';
 
 export type PlainFrame = { kicker: string; headline: string; lines: string[] };
 
-export function plainFrame(st: Pick<ScreenState, 'scene' | 'beat' | 'live' | 'concept' | 'late'>, d: RevealData | null): PlainFrame {
+export function plainFrame(st: Pick<ScreenState, 'scene' | 'beat' | 'live' | 'concept' | 'late' | 'q' | 'hide' | 'slot'>, d: RevealData | null): PlainFrame {
   const s: SceneId = st.scene;
   const b = st.beat;
   const live = st.live;
+  if (isPart3(s)) return part3Frame(st, d);
   switch (s) {
     case 'lobby':
       return { kicker: 'SIGNAL SHIFT', headline: 'TUNE IN', lines: [`Room code ${live?.code ?? '—'}`, `${fmt(live?.joined ?? 0)} joined`] };
