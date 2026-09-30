@@ -46,6 +46,13 @@ async function cmd(sessionId: string, c: Record<string, unknown>, h = host, leas
   return hostCall<{ view: PresenterView; changed: boolean }>(h, 'pres.cmd', { sessionId, leaseId, cmd: c });
 }
 
+async function begin(sessionId: string) {
+  const open = await hostCall<{ view: PresenterView }>(host, 'pres.open', { sessionId, leaseId: LEASE });
+  const r = await cmd(sessionId, { t: 'begin', rev: open.view.rev, confirm: 'BEGIN' });
+  expect(r.ok).toBe(true);
+  return r.view;
+}
+
 function screen(code: string, key: string) {
   const s = io(`${url}/s`, { transports: ['websocket'], forceNew: true, reconnection: false, auth: { code, key } });
   sockets.push(s);
@@ -141,7 +148,7 @@ describe('snapshots', () => {
     await hostCall(host, 'bots.spawn', { sessionId: s.id, n: 15 });
     await hostCall(host, 'bots.advance', { sessionId: s.id, to: 'rated_before' });
     await hostCall(host, 'release', { sessionId: s.id });
-    const b = (await cmd(s.id, { t: 'begin', rev: s.view.rev, confirm: 'BEGIN' })).view;
+    const b = await begin(s.id);
     const before = (await hostCall<{ hash: string; data: RevealData }>(host, 'pres.data', { sessionId: s.id }));
     expect(before.data.n.paired).toBe(0);
     await hostCall(host, 'bots.advance', { sessionId: s.id, to: 'done' });
@@ -157,7 +164,7 @@ describe('snapshots', () => {
   it('derive agrees with the Part 1 host summary', async () => {
     const s = await session();
     await bots(s.id, 30);
-    await cmd(s.id, { t: 'begin', rev: s.view.rev, confirm: 'BEGIN' });
+    await begin(s.id);
     const d = (await hostCall<{ data: RevealData }>(host, 'pres.data', { sessionId: s.id })).data;
     const w = await hostCall<{ view: { internals: { summary: { condition: 'up' | 'neutral' | 'down'; n: number; meanDelta: number | null }[] } } }>(host, 'watch', { sessionId: s.id });
     for (const row of w.view.internals.summary) {
@@ -201,7 +208,7 @@ describe('phones', () => {
     sockets.push(p);
     await p.join();
     expect(p.view!.room.screen).toBeUndefined();
-    const b = (await cmd(s.id, { t: 'begin', rev: s.view.rev, confirm: 'BEGIN' })).view;
+    const b = await begin(s.id);
     await p.waitFor((v: ParticipantView) => v.room.screen === 'look');
     const keys = JSON.stringify(p.view);
     for (const bad of ['scene', 'beat', 'snapshot', 'reveal', 'world']) expect(keys).not.toContain(bad);
