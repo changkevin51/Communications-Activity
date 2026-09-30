@@ -18,6 +18,7 @@ import {
   resetSession,
 } from '../services/host';
 import { tokenBucket } from './rateLimit';
+import { registerPresenter } from './presenter';
 
 type HostAck = (res: { ok: true; [k: string]: unknown } | { ok: false; reason: string }) => void;
 
@@ -34,7 +35,7 @@ const Spawn = Sid.extend({
   mean: z.number().min(200).max(1000).default(660),
   sd: z.number().min(0).max(300).default(120),
 });
-const Advance = Sid.extend({ to: z.enum(['rated_before', 'done']) });
+const Advance = Sid.extend({ to: z.enum(['rated_before', 'done']), effect: z.enum(['expected', 'none', 'reversed']).default('expected') });
 
 export function registerHostNs(ns: Namespace, db: Db, hub: Hub, adminKey: string) {
   ns.use((socket, next) => {
@@ -59,11 +60,13 @@ export function registerHostNs(ns: Namespace, db: Db, hub: Hub, adminKey: string
         try {
           cb({ ok: true, ...fn(parsed.data, Date.now()) });
         } catch (e) {
-          cb({ ok: false, reason: e instanceof BotError ? e.message : 'ERROR' });
+          const known = e instanceof BotError || (e instanceof Error && /^[A-Z_]+$/.test(e.message));
+          cb({ ok: false, reason: known ? (e as Error).message : 'ERROR' });
         }
       });
     }
 
+    registerPresenter(socket, on, db, hub);
     on('sessions', z.object({}), () => ({ sessions: listSessions(db) }));
     on('create', Create, (req, now) => {
       const s = createSession(db, req.label, req.mode, req.config, now);
@@ -102,6 +105,7 @@ export function registerHostNs(ns: Namespace, db: Db, hub: Hub, adminKey: string
     });
     on('delete', Reset, (req) => {
       deleteSession(db, req.sessionId);
+      hub.screenNs?.in(`s:${req.sessionId}`).disconnectSockets(true);
       return {};
     });
     on('remove', Remove, (req, now) => {
@@ -118,7 +122,7 @@ export function registerHostNs(ns: Namespace, db: Db, hub: Hub, adminKey: string
       return { spawned: ids.length };
     });
     on('bots.advance', Advance, (req, now) => {
-      const ids = advanceBots(db, req.sessionId, req.to, now);
+      const ids = advanceBots(db, req.sessionId, req.to, now, req.effect);
       hub.pushHost(req.sessionId);
       return { advanced: ids.length };
     });

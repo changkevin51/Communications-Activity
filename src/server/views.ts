@@ -5,6 +5,7 @@ import type { Stage } from '../shared/flow';
 import { atOrPast } from '../shared/flow';
 import { attemptSeed, getAssignment, getAttempt, getParticipant, getRatings, getSession, sessionConfig } from './db/repo';
 import type { Thresholds } from './assign/thresholds';
+import { isLook } from './services/presentation';
 
 export function buildView(db: Db, pid: string, now: number): ParticipantView | null {
   const p = getParticipant(db, pid);
@@ -16,7 +17,7 @@ export function buildView(db: Db, pid: string, now: number): ParticipantView | n
   const view: ParticipantView = {
     rev: p.rev,
     serverNow: now,
-    room: { code: s.code, open: s.phase !== 'closed' },
+    room: { code: s.code, open: s.phase !== 'closed', ...(isLook(db, s.id) ? { screen: 'look' as const } : {}) },
     me: { codename: p.codename, sigil: JSON.parse(p.sigil_json) as Sigil, stage: p.removed_at ? 'removed' : stage },
   };
   if (p.removed_at) return view;

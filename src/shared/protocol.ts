@@ -54,7 +54,7 @@ export type OtherPlayer = { codename: string; sigil: Sigil; score: number };
 export type ParticipantView = {
   rev: number;
   serverNow: number;
-  room: { code: string; open: boolean };
+  room: { code: string; open: boolean; screen?: 'look' };
   me: { codename: string; sigil: Sigil; stage: Stage | 'removed' };
   game?: { version: string; seed: string; studyScale: number };
   result?: { score: number; avgLockMs: number | null; bestStreak: number; fastestMs: number | null };

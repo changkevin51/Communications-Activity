@@ -71,4 +71,50 @@ CREATE TABLE events (
   type TEXT NOT NULL, at INTEGER NOT NULL, data_json TEXT
 );
 `,
+  `
+CREATE TABLE reveal_snapshots (
+  id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  source TEXT NOT NULL CHECK (source IN ('live','test','demo')),
+  scenario TEXT, seed TEXT,
+  version TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  counts_json TEXT NOT NULL,
+  rows_json TEXT NOT NULL,
+  data_json TEXT NOT NULL,
+  hash TEXT NOT NULL
+);
+CREATE INDEX reveal_snapshots_session ON reveal_snapshots(session_id, created_at);
+CREATE TRIGGER reveal_snapshots_immutable BEFORE UPDATE ON reveal_snapshots
+BEGIN SELECT RAISE(ABORT, 'snapshot is immutable'); END;
+CREATE TRIGGER reveal_snapshots_demo_guard BEFORE INSERT ON reveal_snapshots
+WHEN NEW.source = 'demo' AND (SELECT mode FROM sessions WHERE id = NEW.session_id) = 'live'
+BEGIN SELECT RAISE(ABORT, 'demo data on live session'); END;
+
+CREATE TABLE presentations (
+  session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+  scene TEXT NOT NULL DEFAULT 'lobby',
+  beat INTEGER NOT NULL DEFAULT 0,
+  rev INTEGER NOT NULL DEFAULT 1,
+  nonce INTEGER NOT NULL DEFAULT 0,
+  hold INTEGER NOT NULL DEFAULT 0,
+  plain INTEGER NOT NULL DEFAULT 0,
+  motion TEXT NOT NULL DEFAULT 'full' CHECK (motion IN ('full','calm','off')),
+  auto INTEGER NOT NULL DEFAULT 1,
+  snapshot_id TEXT REFERENCES reveal_snapshots(id),
+  screen_key TEXT NOT NULL,
+  controller TEXT,
+  controller_at INTEGER,
+  concept_json TEXT NOT NULL DEFAULT '{"title":"","quotes":[]}',
+  changed_at INTEGER NOT NULL,
+  cmd_at INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE presentation_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  at INTEGER NOT NULL,
+  cmd TEXT NOT NULL, from_scene TEXT, from_beat INTEGER, to_scene TEXT, to_beat INTEGER, rev INTEGER NOT NULL
+);
+`,
 ];

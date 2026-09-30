@@ -55,9 +55,14 @@ export function spawnBots(db: Db, sessionId: string, n: number, meanScore: numbe
   });
 }
 
-const EFFECT = { up: -8, neutral: 0, down: 8 } as const;
+export const BOT_EFFECTS = {
+  expected: { up: -8, neutral: 0, down: 8 },
+  none: { up: 0, neutral: 0, down: 0 },
+  reversed: { up: 5, neutral: 0, down: -5 },
+} as const;
+export type BotEffect = keyof typeof BOT_EFFECTS;
 
-export function advanceBots(db: Db, sessionId: string, to: 'rated_before' | 'done', now: number): string[] {
+export function advanceBots(db: Db, sessionId: string, to: 'rated_before' | 'done', now: number, effect: BotEffect = 'expected'): string[] {
   return db.tx(() => {
     const s = requireTest(db, sessionId);
     const rng = rngFrom(`${s.seed}:advance:${to}:${now}`);
@@ -84,7 +89,7 @@ export function advanceBots(db: Db, sessionId: string, to: 'rated_before' | 'don
         s.id,
       );
       for (const b of bots) {
-        const value = Math.round(clamp(b.r1 + EFFECT[b.condition] + normal(rng) * 4, 0, 100) * 10) / 10;
+        const value = Math.round(clamp(b.r1 + BOT_EFFECTS[effect][b.condition] + normal(rng) * 4, 0, 100) * 10) / 10;
         db.run("INSERT INTO ratings (participant_id, phase, value, created_at) VALUES (?, 'after', ?, ?)", b.id, value, now);
         db.run('UPDATE participants SET recap_seen_at = COALESCE(recap_seen_at, ?) WHERE id = ?', now, b.id);
         setStage(db, b.id, 'done', now);

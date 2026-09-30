@@ -10,6 +10,7 @@ import { CODE_RE } from '../shared/code';
 import { exportCsv, exportJson } from './services/exporter';
 import { registerParticipantNs } from './sockets/participant';
 import { registerHostNs } from './sockets/host';
+import { registerScreenNs } from './sockets/screen';
 
 export type AppOptions = { db: Db; adminKey: string; clientDir?: string; logger?: boolean; hostDebounceMs?: number };
 
@@ -50,6 +51,7 @@ export async function createApp(opts: AppOptions) {
     const noStore = { 'Cache-Control': 'no-store' };
     app.get('/', (_req, reply) => reply.headers(noStore).sendFile('index.html'));
     app.get('/host', (_req, reply) => reply.headers(noStore).sendFile('host.html'));
+    app.get<{ Params: { code: string } }>('/screen/:code', (_req, reply) => reply.headers(noStore).sendFile('screen.html'));
     app.get<{ Params: { '*': string } }>('/assets/*', (req, reply) =>
       reply.header('Cache-Control', 'public, max-age=31536000, immutable').sendFile(`assets/${req.params['*']}`),
     );
@@ -64,7 +66,9 @@ export async function createApp(opts: AppOptions) {
   hub.participantNs = io.of('/p');
   hub.hostNs = io.of('/h');
   registerParticipantNs(hub.participantNs, db, hub);
+  hub.screenNs = io.of('/s');
   registerHostNs(hub.hostNs, db, hub, adminKey);
+  registerScreenNs(hub.screenNs, db, hub);
 
   app.addHook('onClose', async () => {
     hub.close();

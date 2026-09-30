@@ -53,6 +53,9 @@ export function reopenSession(db: Db, id: string) {
 
 export function resetSession(db: Db, id: string) {
   db.tx(() => {
+    db.run('DELETE FROM presentations WHERE session_id = ?', id);
+    db.run('DELETE FROM presentation_log WHERE session_id = ?', id);
+    db.run('DELETE FROM reveal_snapshots WHERE session_id = ?', id);
     db.run('DELETE FROM participants WHERE session_id = ?', id);
     db.run(
       "UPDATE sessions SET phase = 'open', release_json = NULL, released_at = NULL, reveal_at = NULL, closed_at = NULL, seed = ? WHERE id = ?",
@@ -66,6 +69,7 @@ export function resetSession(db: Db, id: string) {
 export function deleteSession(db: Db, id: string) {
   db.tx(() => {
     db.run('DELETE FROM events WHERE session_id = ?', id);
+    db.run('DELETE FROM presentations WHERE session_id = ?', id);
     db.run('DELETE FROM sessions WHERE id = ?', id);
   });
 }
