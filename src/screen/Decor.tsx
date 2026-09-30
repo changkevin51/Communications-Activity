@@ -84,7 +84,8 @@ function Compare({ d, beat }: { d: RevealData; beat: number }) {
           <g key={w}>
             <rect x={cx - 110} y={Math.min(top, zero)} width={220} height={Math.max(3, Math.abs(top - zero))} fill={WORLD_COLOR[w]} opacity={0.9} />
             <text x={cx} y={v !== null && v < 0 ? Math.max(top, zero) + 60 : Math.min(top, zero) - 22} fill={PAPER} fontSize={52} textAnchor="middle" className="display">{fmt(v, 'delta')}</text>
-            <text x={cx} y={H - 70} fill={WORLD_COLOR[w]} fontSize={26} textAnchor="middle" className="display">{WORLD_GLYPH[w]} {WORLD_PLAIN[w]}{d.worlds[w].small ? ' · SMALL GROUP' : ''}</text>
+            <text x={cx} y={H - 70} fill={WORLD_COLOR[w]} fontSize={26} textAnchor="middle" className="display">{WORLD_GLYPH[w]} {WORLD_PLAIN[w]}</text>
+            {d.worlds[w].small && <text x={cx} y={H - 38} fill={MUTE} fontSize={20} textAnchor="middle" className="mono">SMALL GROUP</text>}
           </g>
         );
       })}
@@ -93,7 +94,7 @@ function Compare({ d, beat }: { d: RevealData; beat: number }) {
 }
 
 function Slopes({ d }: { d: RevealData }) {
-  const y = ratingY(900, 300);
+  const y = ratingY(930, 390);
   return (
     <g>
       {WORLDS.map((w) => {
@@ -149,7 +150,7 @@ export function Decor({ scene, beat, d }: { scene: SceneId; beat: number; d: Rev
   } else if (scene === 'movement' && d.n.paired >= 3) {
     body = (
       <>
-        <LaneHeads academic={false} y={260} />
+        <LaneHeads academic={false} y={340} />
         {beat === 3 && <Slopes d={d} />}
       </>
     );

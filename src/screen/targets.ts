@@ -36,7 +36,7 @@ function lanesCluster(d: RevealData, a: number): Target[] {
 
 function movement(d: RevealData, beat: number): Target[] {
   const r = Math.min(markRadius(d.marks.length), 8);
-  const y = ratingY(900, 300);
+  const y = ratingY(930, 390);
   return d.marks.map((m) => {
     if (!m.world || m.r1 === null) return { k: m.k, x: 960, y: 1000, r, a: 0, color: PAPER };
     const cx = laneX(m.world) + jitter(m.k, 300);

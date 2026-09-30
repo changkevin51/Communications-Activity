@@ -287,7 +287,7 @@ export function screenState(db: Db, sessionId: string, now: number): ScreenState
   };
   if (isPreReveal(row.scene)) st.live = liveCounts(db, s);
   if (row.scene === 'concept') st.concept = ctx.concept;
-  if (row.scene === 'end' && snap && snap.snap.source !== 'demo') {
+  if (!isPreReveal(row.scene) && snap && snap.snap.source !== 'demo') {
     const counts = JSON.parse(snap.snap.counts_json) as SnapshotCounts;
     st.late = Math.max(0, liveCounts(db, s).done - counts.done);
   }
