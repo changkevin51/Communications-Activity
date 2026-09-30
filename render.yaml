@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: signal-shift
+    runtime: node
+    region: ohio
+    plan: standard
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /healthz
+    autoDeployTrigger: commit
+    disk:
+      name: data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: DB_PATH
+        value: /var/data/signal-shift.db
+      - key: APP_ENV
+        value: production
+      - key: ADMIN_KEY
+        sync: false

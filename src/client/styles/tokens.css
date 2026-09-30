@@ -1,0 +1,15 @@
+:root {
+  --ink: #0b0c10;
+  --ink-2: #14161d;
+  --hair: rgba(244, 241, 234, 0.12);
+  --paper: #f4f1ea;
+  --mute: #8f93a3;
+  --signal: #ff4f1f;
+  --phosphor: #c8ff3d;
+  --display: 'Anybody Variable', 'Arial Narrow', sans-serif;
+  --ui: 'Instrument Sans Variable', system-ui, sans-serif;
+  --mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+  --bar-h: 64px;
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
+}
