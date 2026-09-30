@@ -1,0 +1,32 @@
+:root { color-scheme: dark; --ink: #0b0c10; --ink2: #14161d; --hair: rgba(244,241,234,.14); --paper: #f4f1ea; --mute: #8f93a3; --signal: #ff4f1f; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--ink); color: var(--paper); font: 14px/1.4 system-ui, sans-serif; }
+.wrap { max-width: 1200px; margin: 0 auto; padding: 16px; }
+h1, h2, h3 { margin: 0 0 10px; font-weight: 700; }
+h1 { font-size: 20px; letter-spacing: .08em; text-transform: uppercase; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.grid { display: grid; gap: 16px; grid-template-columns: 280px 1fr; }
+@media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+button, input, select { font: inherit; color: var(--paper); background: var(--ink2); border: 1px solid var(--hair); padding: 8px 12px; border-radius: 0; }
+button { cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--paper); }
+button:disabled { opacity: .45; cursor: default; }
+button.primary { background: var(--signal); color: var(--ink); border-color: var(--signal); font-weight: 700; }
+button.danger { border-color: var(--signal); color: var(--signal); }
+.panel { border: 1px solid var(--hair); padding: 14px; margin-bottom: 16px; }
+.muted { color: var(--mute); }
+.mono { font-family: ui-monospace, monospace; }
+.sessions button { display: block; width: 100%; text-align: left; margin-bottom: 6px; }
+.sessions button.active { border-color: var(--signal); }
+.funnel { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
+.funnel div { border: 1px solid var(--hair); padding: 8px; }
+.funnel b { display: block; font-size: 26px; }
+table { border-collapse: collapse; width: 100%; font-size: 12px; }
+th, td { border-bottom: 1px solid var(--hair); padding: 5px 6px; text-align: left; white-space: nowrap; }
+th { color: var(--mute); font-weight: 600; }
+.scroll { overflow-x: auto; }
+.qr { position: fixed; inset: 0; background: var(--ink); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; z-index: 10; }
+.qr img { width: min(70vh, 90vw); image-rendering: pixelated; background: #fff; }
+.qr .code { font-size: 64px; font-weight: 800; letter-spacing: .2em; }
+.err { color: var(--signal); }
+label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--mute); }

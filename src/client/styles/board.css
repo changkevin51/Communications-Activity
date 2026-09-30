@@ -1,0 +1,45 @@
+.board { --grid: 3; position: relative; width: min(100%, 440px, 62dvh); aspect-ratio: 1; margin: 0 auto; display: grid;
+  grid-template-columns: repeat(var(--grid), 1fr); gap: 6px; touch-action: none; user-select: none; -webkit-user-select: none;
+  -webkit-touch-callout: none; }
+.cell { position: relative; background: var(--ink-2); box-shadow: inset 0 0 0 1px var(--hair); }
+.cell > div { position: absolute; inset: 12%; opacity: 0; }
+.cell > div svg { width: 100%; height: 100%; display: block; }
+.cell .lm { inset: 0; background: url('/mask.svg') 0 0 / 24px 24px; image-rendering: pixelated; }
+.board[data-phase='study'] .la, .board[data-phase='mask'] .lm, .board[data-phase='test'] .lb, .board[data-phase='feedback'] .lb { opacity: 1; }
+.board[data-phase='cue']::after { content: ''; position: absolute; left: 50%; top: 50%; width: 10px; height: 10px; margin: -5px;
+  border-radius: 50%; background: var(--paper); animation: pulse 0.4s ease-out; }
+@keyframes pulse { from { transform: scale(0.4); opacity: 1; } to { transform: scale(2.2); opacity: 0; } }
+.board[data-phase='test'] .cell { cursor: pointer; }
+.cell.pressed { box-shadow: inset 0 0 0 2px var(--mute); }
+.cell.hit { box-shadow: inset 0 0 0 3px var(--paper), 0 0 0 2px var(--signal); }
+.cell.miss { opacity: 0.35; }
+.cell.truth { box-shadow: inset 0 0 0 3px transparent; outline: 3px dashed var(--paper); outline-offset: -6px; }
+.board[data-timeout='1']::before { content: 'Missed'; position: absolute; left: 0; right: 0; bottom: -34px; text-align: center;
+  font-family: var(--mono); font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--mute); }
+
+.rail { display: grid; grid-template-columns: repeat(12, 1fr); gap: 4px; }
+.rail i { height: 4px; background: var(--hair); }
+.rail i.on { background: var(--paper); }
+.phase-label { text-align: center; font-family: var(--mono); letter-spacing: 0.24em; font-size: 13px; text-transform: uppercase; min-height: 18px; }
+.caption { text-align: center; font-family: var(--display); font-variation-settings: 'wdth' 110; font-weight: 800; font-size: 28px; min-height: 34px; }
+.overlay { position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px; background: rgba(11, 12, 16, 0.92); border: 0; color: var(--paper); cursor: pointer; }
+.big-count { font-family: var(--display); font-size: 120px; font-weight: 800; font-variation-settings: 'wdth' 80; }
+
+.fader { position: relative; width: 120px; height: min(60dvh, 440px); margin: 0 auto; touch-action: none; cursor: pointer; outline: none; }
+.fader .track { position: absolute; left: 50%; top: 0; bottom: 0; width: 6px; margin-left: -3px; background: var(--ink-2); box-shadow: inset 0 0 0 1px var(--hair); }
+.fader .fill { position: absolute; left: 50%; bottom: 0; width: 6px; margin-left: -3px; background: var(--signal); }
+.fader .mid { position: absolute; left: 50%; top: 50%; width: 24px; height: 1px; margin-left: -12px; background: var(--mute); }
+.fader .thumb { position: absolute; left: 50%; width: 72px; height: 14px; margin: -7px 0 0 -36px; background: var(--paper); box-shadow: 0 0 0 1px var(--ink); }
+.fader:focus-visible .track { box-shadow: 0 0 0 2px var(--paper); }
+.fader-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+
+.dial { width: 100%; overflow: visible; }
+.dial text { font-family: var(--mono); font-size: 9px; fill: var(--mute); letter-spacing: 0.08em; }
+.others { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--hair); }
+.others li { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--hair); }
+.others .name { flex: 1; font-family: var(--display); font-variation-settings: 'wdth' 110; font-weight: 700; font-size: 17px; text-transform: uppercase; }
+.others .score { font-family: var(--display); font-weight: 800; font-size: 22px; }
+.odometer { font-family: var(--display); font-weight: 800; font-size: clamp(96px, 34vw, 168px); line-height: 1; display: flex; }
+.odometer span { display: inline-block; transition: font-variation-settings 0.35s cubic-bezier(0.2, 0.8, 0.2, 1); font-variation-settings: 'wdth' 60; }
+.odometer span.locked { font-variation-settings: 'wdth' 120; }

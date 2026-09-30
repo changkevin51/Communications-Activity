@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import Fastify from 'fastify';
+import Fastify, { LogController } from 'fastify';
 import fastifyStatic from '@fastify/static';
 import { Server } from 'socket.io';
 import type { Db } from './db/db';
@@ -15,7 +15,7 @@ export type AppOptions = { db: Db; adminKey: string; clientDir?: string; logger?
 
 export async function createApp(opts: AppOptions) {
   const { db, adminKey } = opts;
-  const app = Fastify({ logger: opts.logger ?? false, trustProxy: true, bodyLimit: 32 * 1024 });
+  const app = Fastify({ logger: opts.logger ?? false, logController: new LogController({ disableRequestLogging: true }), trustProxy: true, bodyLimit: 32 * 1024 });
   const hub = new Hub(db, opts.hostDebounceMs);
 
   app.addHook('onSend', async (_req, reply) => {
