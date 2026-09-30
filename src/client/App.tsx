@@ -91,6 +91,9 @@ function Room({ code, onLeave }: { code: string; onLeave: () => void }) {
   return (
     <>
       {pill}
+      {view.room.screen === 'look' && st !== 'done' && st !== 'removed' && (
+        <div className="late-banner mono" role="status" data-testid="late-banner">The main screen has started. Finish when you're ready.</div>
+      )}
       {screen}
     </>
   );

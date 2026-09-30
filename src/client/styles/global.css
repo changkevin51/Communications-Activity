@@ -60,3 +60,4 @@ button { font: inherit; color: inherit; }
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
   .sigil.trace path { stroke-dashoffset: 0; }
 }
+.late-banner { position: fixed; left: 0; right: 0; top: 0; z-index: 30; pointer-events: none; padding: calc(8px + var(--safe-t)) 16px 8px; font-size: 12px; text-align: center; background: var(--ink-2); color: var(--paper); border-bottom: 1px solid var(--hair); }

@@ -11,7 +11,8 @@ const ALLOW: RegExp[] = [/\bconditional\b/gi, /\bconditions?\s*[:=]/gi, /precond
 const html = readFileSync(join(DIST, 'index.html'), 'utf8');
 const hostHtml = readFileSync(join(DIST, 'host.html'), 'utf8');
 const refs = (h: string) => [...h.matchAll(/(?:src|href)="\/(assets\/[^"]+\.js)"/g)].map((m) => m[1]);
-const hostOnly = new Set(refs(hostHtml).filter((r) => !refs(html).includes(r)));
+const screenHtml = readFileSync(join(DIST, 'screen.html'), 'utf8');
+const hostOnly = new Set([...refs(hostHtml), ...refs(screenHtml)].filter((r) => !refs(html).includes(r)));
 
 const participantFiles = new Set<string>(refs(html));
 const queue = [...participantFiles];
@@ -38,6 +39,10 @@ for (const f of [...participantFiles, 'index.html']) {
       failed = true;
       console.error(`${f}: forbidden "${w}" near …${src.slice(Math.max(0, i - 40), i + 40)}…`);
     }
+  }
+  if (/reveal@1|screen\.html|REHEARSAL|samescore|dataHash/.test(src)) {
+    failed = true;
+    console.error(`${f}: references projector/reveal internals`);
   }
   if (/host\.html|\/host\b|x-admin-key/.test(src)) {
     failed = true;

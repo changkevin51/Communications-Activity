@@ -3,7 +3,19 @@ import react from '@vitejs/plugin-react';
 import { resolve } from 'node:path';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      name: 'screen-route',
+      configureServer(server) {
+        server.middlewares.use((req, _res, next) => {
+          if (req.url && /^\/screen\/[^/.]+\/?(\?.*)?$/.test(req.url)) req.url = '/screen.html';
+          else if (req.url && /^\/host\/?(\?.*)?$/.test(req.url)) req.url = '/host.html';
+          next();
+        });
+      },
+    },
+  ],
   build: {
     outDir: 'dist/client',
     emptyOutDir: true,
@@ -11,6 +23,7 @@ export default defineConfig({
       input: {
         index: resolve(import.meta.dirname, 'index.html'),
         host: resolve(import.meta.dirname, 'host.html'),
+        screen: resolve(import.meta.dirname, 'screen.html'),
       },
     },
   },
