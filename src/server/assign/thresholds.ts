@@ -58,8 +58,8 @@ export function computeThresholds(scores: number[], k = 3): Thresholds {
 export type Band = { lo: number; hi: number };
 
 export function bandFor(score: number, cond: Condition, th: Thresholds): Band {
-  if (cond === 'up') return { lo: score + th.gapMin, hi: Math.min(score + th.gapMax, th.hi) };
-  if (cond === 'down') return { lo: Math.max(score - th.gapMax, th.lo), hi: score - th.gapMin };
+  if (cond === 'up') return { lo: Math.max(score + th.gapMin, th.lo), hi: Math.min(score + th.gapMax, th.hi) };
+  if (cond === 'down') return { lo: Math.max(score - th.gapMax, th.lo), hi: Math.min(score - th.gapMin, th.hi) };
   return { lo: Math.max(score - th.neutralWindow, th.lo), hi: Math.min(score + th.neutralWindow, th.hi) };
 }
 
