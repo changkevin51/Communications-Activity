@@ -4,7 +4,13 @@ import type { Db } from '../db/db';
 import type { Hub } from '../hub';
 import { SCENES } from '../../shared/reveal';
 import { SCENARIOS } from '../reveal/demo';
+import { PROFILES } from '../../shared/discussion';
 import { command, ensurePresentation, getPresentation, rotateScreenKey, setConcept, snapshotData, type Cmd } from '../services/presentation';
+
+function mustControl(db: Db, sessionId: string, leaseId: string) {
+  const row = getPresentation(db, sessionId);
+  if (row?.controller && row.controller !== leaseId) throw new Error('NOT_CONTROLLER');
+}
 
 type On = <T>(event: string, schema: z.ZodType<T>, fn: (req: T, now: number) => Record<string, unknown>) => void;
 
@@ -22,17 +28,25 @@ export const CmdSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('replay'), rev: Rev }),
   z.object({ t: z.literal('resnap'), rev: Rev, confirm: z.literal('RESNAP') }),
   z.object({ t: z.literal('rewind'), rev: Rev, confirm: z.literal('REWIND') }),
-  z.object({ t: z.literal('demo'), rev: Rev, scenario: z.enum(SCENARIOS), n: z.number().int().min(1).max(200), seed: z.string().min(1).max(40) }),
+  z.object({ t: z.literal('demo'), rev: Rev, scenario: z.enum(SCENARIOS), n: z.number().int().min(1).max(200), seed: z.string().min(1).max(40), profile: z.enum(PROFILES).optional() }),
+  z.object({ t: z.literal('close'), rev: Rev }),
+  z.object({ t: z.literal('reopen'), rev: Rev, confirm: z.literal('REOPEN') }),
+  z.object({ t: z.literal('hide'), rev: Rev, on: z.boolean() }),
+  z.object({ t: z.literal('phones'), rev: Rev, mode: z.enum(['auto', 'passive']) }),
+  z.object({ t: z.literal('focus'), rev: Rev, i: z.number().int().min(0).max(9).nullable() }),
+  z.object({ t: z.literal('flag'), rev: Rev, key: z.literal('landscape'), on: z.boolean() }),
   z.object({ t: z.literal('take') }),
 ]);
 
 const Sid = z.object({ sessionId: z.string().min(1) });
 const Open = Sid.extend({ leaseId: z.string().min(8).max(64) });
 const CmdReq = Open.extend({ cmd: CmdSchema });
-const Concept = Sid.extend({
+const Quote = z.object({ text: z.string().max(400), source: z.string().max(120), page: z.string().max(20) });
+const Concept = Open.extend({
   concept: z.object({
     title: z.string().max(80),
-    quotes: z.array(z.object({ text: z.string().max(400), source: z.string().max(120), page: z.string().max(20) })).max(3),
+    quotes: z.array(Quote).max(3),
+    slots: z.partialRecord(z.enum(['felt', 'switch', 'mirrors', 'chooser']), Quote).optional(),
   }),
 });
 
@@ -63,6 +77,7 @@ export function registerPresenter(socket: Socket, on: On, db: Db, hub: Hub) {
     const res = command(db, req.sessionId, req.leaseId, req.cmd as Cmd, now);
     if (res.ok && res.changed) hub.pushPresentation(req.sessionId);
     if (res.ok && res.lookChanged) hub.pushSessionViews(req.sessionId);
+    else if (res.ok && res.changed) hub.pushHost(req.sessionId);
     if (!res.ok) throw new Error(res.reason);
     return { changed: res.changed, view: hub.presenter(req.sessionId) };
   });
@@ -72,11 +87,13 @@ export function registerPresenter(socket: Socket, on: On, db: Db, hub: Hub) {
     return snap ? { hash: snap.snap.hash, data: snap.data } : { hash: null, data: null };
   });
   on('pres.concept', Concept, (req, now) => {
+    mustControl(db, req.sessionId, req.leaseId);
     setConcept(db, req.sessionId, req.concept, now);
     hub.pushPresentation(req.sessionId);
     return {};
   });
-  on('pres.rotateKey', Sid, (req, now) => {
+  on('pres.rotateKey', Open, (req, now) => {
+    mustControl(db, req.sessionId, req.leaseId);
     const key = rotateScreenKey(db, req.sessionId, now);
     hub.screenNs?.in(`s:${req.sessionId}`).disconnectSockets(true);
     hub.pushPresenter(req.sessionId);

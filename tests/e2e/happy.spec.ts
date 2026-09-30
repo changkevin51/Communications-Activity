@@ -68,6 +68,38 @@ test('participant happy path with host release and export', async ({ page, baseU
   await page.getByTestId('lock').click();
   await expect(page.getByTestId('done')).toBeVisible();
 
+  expect((await hostCall(h, 'bots.advance', { sessionId: id, to: 'done' })).ok).toBe(true);
+  const lease = 'lease-happy001';
+  let rev = (await hostCall<{ view: { rev: number } }>(h, 'pres.open', { sessionId: id, leaseId: lease })).view.rev;
+  const pres = async (c: Record<string, unknown>) => {
+    const r = await hostCall<{ view: { rev: number } }>(h, 'pres.cmd', { sessionId: id, leaseId: lease, cmd: { ...c, rev } });
+    expect(r.ok, JSON.stringify(r)).toBe(true);
+    rev = r.view.rev;
+  };
+  await pres({ t: 'begin', confirm: 'BEGIN' });
+  await pres({ t: 'goto', scene: 'felt', beat: 0 });
+  await expect(page.getByTestId('prompt')).toHaveAttribute('data-prompt', 'felt');
+  await expect(page.getByTestId('prompt-send')).toBeDisabled();
+  await page.getByTestId('choice-little').click();
+  await page.getByTestId('prompt-send').click();
+  await expect(page.getByTestId('done')).toBeVisible();
+  await pres({ t: 'goto', scene: 'switch', beat: 0 });
+  await expect(page.getByTestId('prompt')).toHaveAttribute('data-prompt', 'switch');
+  const sliders = page.getByTestId('p-slider');
+  await expect(sliders).toHaveCount(3);
+  for (let i = 0; i < 3; i++) {
+    await sliders.nth(i).focus();
+    await page.keyboard.press('ArrowRight');
+  }
+  await page.getByTestId('prompt-send').click();
+  await expect(page.getByTestId('done')).toBeVisible();
+  await pres({ t: 'goto', scene: 'mirrors', beat: 1 });
+  await page.getByTestId('prompt-skip').click();
+  await expect(page.getByTestId('done')).toBeVisible();
+  const phone = await page.locator('body').innerText();
+  expect(phone).not.toMatch(/ghost|condition|upward|downward|stratum/i);
+  await pres({ t: 'goto', scene: 'end', beat: 0 });
+
   const res = await fetch(`${baseURL}/api/export/${id}`, { headers: { 'x-admin-key': KEY } });
   expect(res.status).toBe(200);
   const data = (await res.json()) as { participants: { codename: string; kind: string }[] };

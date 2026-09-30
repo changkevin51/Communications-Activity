@@ -43,3 +43,16 @@
 .odometer { font-family: var(--display); font-weight: 800; font-size: clamp(96px, 34vw, 168px); line-height: 1; display: flex; }
 .odometer span { display: inline-block; transition: font-variation-settings 0.35s cubic-bezier(0.2, 0.8, 0.2, 1); font-variation-settings: 'wdth' 60; }
 .odometer span.locked { font-variation-settings: 'wdth' 120; }
+
+.prompt .h2 { font-size: clamp(22px, 6.4vw, 34px); line-height: 1.02; }
+.p-body { justify-content: flex-start; padding-top: 18px; gap: 22px; }
+.p-choices { display: flex; flex-direction: column; gap: 10px; }
+.p-choice { min-height: 56px; text-align: left; padding: 14px 16px; background: var(--ink-2); border: 1px solid var(--hair); font-size: 17px; cursor: pointer; }
+.p-choice.on { background: var(--paper); color: var(--ink); border-color: var(--paper); }
+.p-choice:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+.p-slider { display: flex; flex-direction: column; gap: 8px; }
+.p-slider-label { font-size: 16px; line-height: 1.35; }
+.p-slider input[type='range'] { width: 100%; height: 44px; accent-color: var(--signal); touch-action: pan-y; }
+.p-slider input.untouched { opacity: 0.45; }
+.p-anchors { display: flex; justify-content: space-between; font-size: 10px; }
+.p-skip { align-self: center; background: none; border: 0; padding: 14px 18px; margin-bottom: 6px; cursor: pointer; text-decoration: underline; min-height: 44px; }

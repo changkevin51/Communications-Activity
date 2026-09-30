@@ -24,7 +24,7 @@ import {
 
 export type CmdResult =
   | { ok: true; pid: string; sessionId: string; changed: boolean }
-  | { ok: false; reason: 'NO_ROOM' | 'CLOSED' | 'NOT_JOINED' | 'WRONG_STAGE' };
+  | { ok: false; reason: 'NO_ROOM' | 'CLOSED' | 'NOT_JOINED' | 'WRONG_STAGE' | 'BAD_REQUEST' };
 
 export const MIN_PLAY_MS = 25_000;
 export const MIN_MEDIAN_RT = 250;

@@ -11,11 +11,15 @@ import { derive } from '../reveal/derive';
 import { assertPublic } from '../reveal/public';
 import { demoRows, type Scenario } from '../reveal/demo';
 import { notesFor } from '../reveal/registry';
+import { DEFAULT_FLAGS, PROMPT_OF, askBeat, isPart3, roleAt, type Part3Flags, type Profile, type PromptId } from '../../shared/discussion';
+import { slotQuote } from '../../shared/reveal';
+import { clearPrompts, freezeOpen, latestRun, openRun, presenterQuestion, screenQuestion, syncQuestion, type DemoCfg, type QCtx } from './discussion';
 
 export type PresRow = {
   session_id: string; scene: SceneId; beat: number; rev: number; nonce: number; hold: number; plain: number;
   motion: Motion; auto: number; snapshot_id: string | null; screen_key: string; controller: string | null;
   controller_at: number | null; concept_json: string; changed_at: number; cmd_at: number;
+  phones: 'auto' | 'passive'; hide: number; focus: number | null; flags_json: string; part3_at: number | null;
 };
 type SnapRow = { id: string; source: Source; scenario: string | null; counts_json: string; data_json: string; hash: string };
 
@@ -31,10 +35,16 @@ export type Cmd =
   | { t: 'replay'; rev: number }
   | { t: 'resnap'; rev: number; confirm: 'RESNAP' }
   | { t: 'rewind'; rev: number; confirm: 'REWIND' }
-  | { t: 'demo'; rev: number; scenario: Scenario; n: number; seed: string }
+  | { t: 'demo'; rev: number; scenario: Scenario; n: number; seed: string; profile?: Profile }
+  | { t: 'close'; rev: number }
+  | { t: 'reopen'; rev: number; confirm: 'REOPEN' }
+  | { t: 'hide'; rev: number; on: boolean }
+  | { t: 'phones'; rev: number; mode: 'auto' | 'passive' }
+  | { t: 'focus'; rev: number; i: number | null }
+  | { t: 'flag'; rev: number; key: keyof Part3Flags; on: boolean }
   | { t: 'take' };
 
-export type Reason = 'STALE' | 'NOT_CONTROLLER' | 'GUARD' | 'NO_SNAPSHOT' | 'LIVE_SESSION' | 'NO_SESSION';
+export type Reason = 'STALE' | 'NOT_CONTROLLER' | 'GUARD' | 'NO_SNAPSHOT' | 'LIVE_SESSION' | 'NO_SESSION' | 'NO_QUESTION' | 'PART3_STARTED';
 export type CmdResult = { ok: true; changed: boolean; lookChanged: boolean } | { ok: false; reason: Reason };
 
 export const newScreenKey = () => randomBytes(24).toString('base64url');
@@ -71,8 +81,39 @@ export function conceptOf(row: PresRow): Concept {
   }
 }
 
+type Flags = Part3Flags & { demo?: DemoCfg };
+export function flagsOf(row: PresRow): Flags {
+  try {
+    return { ...DEFAULT_FLAGS, ...(JSON.parse(row.flags_json) as Partial<Flags>) };
+  } catch {
+    return { ...DEFAULT_FLAGS };
+  }
+}
+
 export function navCtx(db: Db, row: PresRow): NavCtx {
-  return { data: snapshotData(db, row.snapshot_id)?.data ?? null, concept: conceptOf(row) };
+  const f = flagsOf(row);
+  return { data: snapshotData(db, row.snapshot_id)?.data ?? null, concept: conceptOf(row), flags: { landscape: f.landscape } };
+}
+
+export function qctx(db: Db, s: SessionRow, row: PresRow): QCtx {
+  const snap = snapshotData(db, row.snapshot_id);
+  const source: Source = snap?.snap.source ?? s.mode;
+  const f = flagsOf(row);
+  const demo = source === 'demo' ? f.demo ?? { profile: 'expected' as Profile, n: snap?.data.n.eligible ?? 30, seed: snap?.snap.scenario ?? 'demo' } : null;
+  return { s, source, demo };
+}
+
+/** Anything a phone can see changes this string. */
+export function phoneSig(db: Db, sessionId: string): string {
+  const row = getPresentation(db, sessionId);
+  if (!row) return '';
+  let ask = '';
+  if (roleAt(row.scene, row.beat) === 'ask') {
+    const p = PROMPT_OF[row.scene as keyof typeof PROMPT_OF]!;
+    const r = latestRun(db, sessionId, p);
+    ask = r ? `${p}:${r.run}:${r.phase}` : p;
+  }
+  return [row.snapshot_id, row.part3_at ? 1 : 0, row.phones, row.scene === 'end' ? 1 : 0, ask].join('|');
 }
 
 export function loadRaw(db: Db, sessionId: string): RawRow[] {
@@ -122,16 +163,17 @@ export function freezeDemo(db: Db, s: SessionRow, scenario: Scenario, n: number,
   return insertSnapshot(db, s, 'demo', scenario, seed, rows, counts, stillFinishing, now);
 }
 
-type Patch = Partial<Pick<PresRow, 'scene' | 'beat' | 'nonce' | 'hold' | 'plain' | 'motion' | 'auto' | 'snapshot_id'>>;
+type Patch = Partial<Pick<PresRow, 'scene' | 'beat' | 'nonce' | 'hold' | 'plain' | 'motion' | 'auto' | 'snapshot_id' | 'phones' | 'hide' | 'focus' | 'flags_json' | 'part3_at'>>;
 
 function apply(db: Db, row: PresRow, patch: Patch, cmd: string, now: number) {
   const next = { ...row, ...patch };
   const moved = next.scene !== row.scene || next.beat !== row.beat || next.nonce !== row.nonce || next.snapshot_id !== row.snapshot_id;
   db.run(
     `UPDATE presentations SET scene = ?, beat = ?, nonce = ?, hold = ?, plain = ?, motion = ?, auto = ?, snapshot_id = ?,
-       rev = rev + 1, changed_at = ?, cmd_at = ? WHERE session_id = ?`,
+       phones = ?, hide = ?, focus = ?, flags_json = ?, part3_at = ?, rev = rev + 1, changed_at = ?, cmd_at = ? WHERE session_id = ?`,
     next.scene, next.beat, next.nonce, next.hold, next.plain, next.motion, next.auto, next.snapshot_id,
-    moved ? now : row.changed_at, cmd === 'auto-follow' ? row.cmd_at : now, row.session_id,
+    next.phones, next.hide, next.focus, next.flags_json, next.part3_at,
+    moved || next.hide !== row.hide ? now : row.changed_at, cmd === 'auto-follow' ? row.cmd_at : now, row.session_id,
   );
   db.run(
     'INSERT INTO presentation_log (session_id, at, cmd, from_scene, from_beat, to_scene, to_beat, rev) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
@@ -168,12 +210,20 @@ export function command(db: Db, sessionId: string, leaseId: string, cmd: Cmd, no
     }
     const ctx = navCtx(db, row);
     const pos: Pos = { scene: row.scene, beat: row.beat };
-    const hadSnap = row.snapshot_id !== null;
+    const sig = phoneSig(db, sessionId);
     const done = (patch: Patch, name: string): CmdResult => {
+      const to = { scene: patch.scene ?? row.scene, beat: patch.beat ?? row.beat };
+      const moved = to.scene !== row.scene || to.beat !== row.beat;
+      if (moved) {
+        patch = { hide: 0, focus: null, ...patch };
+        if (isPart3(to.scene) && row.part3_at === null && patch.part3_at === undefined) patch.part3_at = now;
+      }
       apply(db, row, patch, name, now);
-      const hasSnap = (patch.snapshot_id !== undefined ? patch.snapshot_id : row.snapshot_id) !== null;
-      return { ok: true, changed: true, lookChanged: hasSnap !== hadSnap };
+      if (moved && patch.snapshot_id === undefined) syncQuestion(db, qctx(db, s, { ...row, ...patch }), pos, to, now);
+      return { ok: true, changed: true, lookChanged: phoneSig(db, sessionId) !== sig };
     };
+    const reset: Patch = { phones: 'auto', hide: 0, focus: null, part3_at: null };
+    const prompt = PROMPT_OF[row.scene as keyof typeof PROMPT_OF] as PromptId | undefined;
     switch (cmd.t) {
       case 'next':
       case 'prev': {
@@ -198,12 +248,41 @@ export function command(db: Db, sessionId: string, leaseId: string, cmd: Cmd, no
         return done({ scene: 'onegame', beat: 0, hold: 0, snapshot_id: freeze(db, s, now) }, 'begin');
       }
       case 'resnap':
+        if (row.part3_at !== null) return { ok: false, reason: 'PART3_STARTED' };
         return done({ scene: 'onegame', beat: 0, hold: 0, snapshot_id: freeze(db, s, now) }, 'resnap');
-      case 'demo':
+      case 'demo': {
         if (s.mode !== 'test') return { ok: false, reason: 'LIVE_SESSION' };
-        return done({ scene: 'onegame', beat: 0, hold: 0, snapshot_id: freezeDemo(db, s, cmd.scenario, cmd.n, cmd.seed, now) }, `demo:${cmd.scenario}`);
-      case 'rewind':
-        return done({ scene: 'lobby', beat: 0, hold: 0, snapshot_id: null }, 'rewind');
+        clearPrompts(db, sessionId);
+        const flags = { ...flagsOf(row), demo: { profile: cmd.profile ?? 'expected', n: cmd.n, seed: cmd.seed } };
+        return done({ ...reset, scene: 'onegame', beat: 0, hold: 0, flags_json: JSON.stringify(flags), snapshot_id: freezeDemo(db, s, cmd.scenario, cmd.n, cmd.seed, now) }, `demo:${cmd.scenario}`);
+      }
+      case 'rewind': {
+        clearPrompts(db, sessionId);
+        const { demo: _demo, ...flags } = flagsOf(row);
+        return done({ ...reset, scene: 'lobby', beat: 0, hold: 0, snapshot_id: null, flags_json: JSON.stringify(flags) }, 'rewind');
+      }
+      case 'close':
+        if (!prompt || !freezeOpen(db, qctx(db, s, row), prompt, now)) return { ok: false, reason: 'NO_QUESTION' };
+        return done({}, `close:${prompt}`);
+      case 'reopen': {
+        if (!prompt || !latestRun(db, sessionId, prompt)) return { ok: false, reason: 'NO_QUESTION' };
+        const q = qctx(db, s, row);
+        freezeOpen(db, q, prompt, now);
+        const run = openRun(db, q, prompt, now);
+        const ask = ROLES_ASK(row.scene);
+        return done({ beat: ask, hide: 0, focus: null, phones: 'auto' }, `reopen:${prompt}:${run}`);
+      }
+      case 'hide':
+        return done({ hide: cmd.on ? 1 : 0 }, cmd.on ? 'hide' : 'unhide');
+      case 'phones':
+        return done({ phones: cmd.mode }, `phones:${cmd.mode}`);
+      case 'focus':
+        return done({ focus: cmd.i }, cmd.i === null ? 'unfocus' : `focus:${cmd.i}`);
+      case 'flag': {
+        const { demo, ...rest } = flagsOf(row);
+        const flags = { ...rest, [cmd.key]: cmd.on, ...(demo ? { demo } : {}) };
+        return done({ flags_json: JSON.stringify(flags) }, `flag:${cmd.key}:${cmd.on ? 'on' : 'off'}`);
+      }
       case 'hold':
         return done({ hold: cmd.on ? 1 : 0 }, cmd.on ? 'hold' : 'unhold');
       case 'plain':
@@ -217,6 +296,8 @@ export function command(db: Db, sessionId: string, leaseId: string, cmd: Cmd, no
     }
   });
 }
+
+const ROLES_ASK = (scene: SceneId) => (isPart3(scene) ? Math.max(0, askBeat(scene)) : 0);
 
 export function releaseLease(db: Db, sessionId: string, leaseId: string) {
   db.run('UPDATE presentations SET controller = NULL, rev = rev + 1 WHERE session_id = ? AND controller = ?', sessionId, leaseId);
@@ -287,6 +368,13 @@ export function screenState(db: Db, sessionId: string, now: number): ScreenState
   };
   if (isPreReveal(row.scene)) st.live = liveCounts(db, s);
   if (row.scene === 'concept') st.concept = ctx.concept;
+  if (isPart3(row.scene)) {
+    const q = screenQuestion(db, qctx(db, s, row), row.scene, row.beat);
+    if (q) st.q = q;
+    st.hide = !!row.hide;
+    st.focus = row.focus;
+    if (roleAt(row.scene, row.beat) === 'concept') st.slot = slotQuote(ctx.concept, row.scene);
+  }
   if (!isPreReveal(row.scene) && snap && snap.snap.source !== 'demo') {
     const counts = JSON.parse(snap.snap.counts_json) as SnapshotCounts;
     st.late = Math.max(0, liveCounts(db, s).done - counts.done);
@@ -319,6 +407,10 @@ export function presenterView(db: Db, sessionId: string, now: number, conn: { ph
     strip: SCENES.map((x) => ({ scene: x.id, beats: beatsFor(x.id, ctx), skip: skipReason(x.id, ctx) })),
     conceptConfig: ctx.concept,
     notes: notesFor(row.scene, row.beat, snap?.data ?? null),
+    question: presenterQuestion(db, qctx(db, s, row), row.scene, row.beat),
+    flags: { landscape: flagsOf(row).landscape },
+    phones: row.phones,
+    part3At: row.part3_at,
   };
 }
 

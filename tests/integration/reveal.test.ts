@@ -87,7 +87,7 @@ describe('projector auth', () => {
     const good = screen(s.code, s.view.screenKey);
     await until(() => good.last());
     expect(good.last().scene).toBe('lobby');
-    const rot = await hostCall<{ screenKey: string }>(host, 'pres.rotateKey', { sessionId: s.id });
+    const rot = await hostCall<{ screenKey: string }>(host, 'pres.rotateKey', { sessionId: s.id, leaseId: LEASE });
     expect(rot.screenKey).not.toBe(s.view.screenKey);
     await until(() => !good.s.connected);
   });

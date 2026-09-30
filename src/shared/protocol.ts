@@ -43,18 +43,50 @@ export const RateReq = z.object({
 
 export const SeenReq = z.object({ dialDwellMs: z.number().int().min(0).max(3_600_000) });
 
+const Opt = z.string().min(1).max(24);
+export const AnswerReq = z.object({
+  prompt: Opt,
+  run: z.number().int().min(1).max(1000),
+  rid: z.string().min(8).max(40),
+  value: z.union([
+    z.object({ c: Opt }).strict(),
+    z.object({ cs: z.array(Opt).min(1).max(3) }).strict(),
+    z.object({ v: z.array(z.number().int().min(0).max(100)).min(2).max(3) }).strict(),
+    z.object({ skip: z.literal(true) }).strict(),
+  ]),
+});
+
 export type JoinReqT = z.infer<typeof JoinReq>;
 export type StartReqT = z.infer<typeof StartReq>;
 export type FinishReqT = z.infer<typeof FinishReq>;
 export type RateReqT = z.infer<typeof RateReq>;
 export type SeenReqT = z.infer<typeof SeenReq>;
+export type AnswerReqT = z.infer<typeof AnswerReq>;
+
+export type PhonePrompt = {
+  id: string;
+  run: number;
+  kind: 'single' | 'multi' | 'sliders';
+  title: string;
+  body?: string;
+  choices?: { id: string; label: string }[];
+  exclusive?: string[];
+  max?: number;
+  sliders?: { id: string; label: string }[];
+  anchors?: [string, string];
+  skipLabel: string;
+  submitLabel: string;
+  answered: boolean;
+};
+
+export type RoomScreen = 'look' | 'discuss' | 'end';
 
 export type OtherPlayer = { codename: string; sigil: Sigil; score: number };
 
 export type ParticipantView = {
   rev: number;
   serverNow: number;
-  room: { code: string; open: boolean; screen?: 'look' };
+  room: { code: string; open: boolean; screen?: RoomScreen; prompt?: PhonePrompt };
   me: { codename: string; sigil: Sigil; stage: Stage | 'removed' };
   game?: { version: string; seed: string; studyScale: number };
   result?: { score: number; avgLockMs: number | null; bestStreak: number; fastestMs: number | null };

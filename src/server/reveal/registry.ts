@@ -1,5 +1,7 @@
 import type { RevealData, SceneId } from '../../shared/reveal';
 import { compareCopy, fmt } from '../../shared/revealCopy';
+import { isPart3 } from '../../shared/discussion';
+import { NOTES3 } from '../../shared/discussionContent';
 
 const NOTES: Record<SceneId, string[]> = {
   lobby: ['Get everyone joined. Auto-follow moves to "playing" when someone starts.'],
@@ -14,10 +16,12 @@ const NOTES: Record<SceneId, string[]> = {
   compare: ['One shared chart, zoomed in (thumbnail shows the full scale).', 'The result in words — descriptive, not causal.', 'One class. Talk about sample size and replication.'],
   mechanism: ['The pipeline. The only difference was who you saw.', 'Full disclosure of generated scores.'],
   concept: ['The textbook link.'],
+  bridge: [], felt: [], switch: [], landscape: [], mirrors: [], chooser: [], circle: [],
   end: ['Thanks. Data stays anonymous.'],
 };
 
 export function notesFor(scene: SceneId, beat: number, data: RevealData | null): string[] {
+  if (isPart3(scene)) return NOTES3[scene][Math.min(beat, NOTES3[scene].length - 1)] ?? [];
   const base = NOTES[scene];
   const out = [base[Math.min(beat, base.length - 1)]];
   if (!data) return out;

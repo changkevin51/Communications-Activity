@@ -3,9 +3,16 @@ import type { ParticipantView, OtherPlayer } from '../shared/protocol';
 import type { Sigil } from '../shared/identity/sigil';
 import type { Stage } from '../shared/flow';
 import { atOrPast } from '../shared/flow';
+import type { ParticipantRow, SessionRow } from './db/repo';
 import { attemptSeed, getAssignment, getAttempt, getParticipant, getRatings, getSession, sessionConfig } from './db/repo';
 import type { Thresholds } from './assign/thresholds';
-import { isLook } from './services/presentation';
+import { getPresentation, snapshotData } from './services/presentation';
+import { phoneRoom } from './services/discussion';
+
+function roomState(db: Db, s: SessionRow, p: ParticipantRow) {
+  const row = getPresentation(db, s.id);
+  return phoneRoom(db, s, p, row, row ? snapshotData(db, row.snapshot_id)?.snap.source ?? null : null);
+}
 
 export function buildView(db: Db, pid: string, now: number): ParticipantView | null {
   const p = getParticipant(db, pid);
@@ -17,7 +24,7 @@ export function buildView(db: Db, pid: string, now: number): ParticipantView | n
   const view: ParticipantView = {
     rev: p.rev,
     serverNow: now,
-    room: { code: s.code, open: s.phase !== 'closed', ...(isLook(db, s.id) ? { screen: 'look' as const } : {}) },
+    room: { code: s.code, open: s.phase !== 'closed', ...roomState(db, s, p) },
     me: { codename: p.codename, sigil: JSON.parse(p.sigil_json) as Sigil, stage: p.removed_at ? 'removed' : stage },
   };
   if (p.removed_at) return view;

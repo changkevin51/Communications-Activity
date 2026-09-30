@@ -5,7 +5,7 @@ import { eligibility, type RawRow } from '../../src/server/reveal/eligibility';
 import { demoRows, SCENARIOS } from '../../src/server/reveal/demo';
 import { assertPublic } from '../../src/server/reveal/public';
 import { CAUSAL_WORDS, compareCopy, fmt, footnote, mechanismLine, onegameCaption } from '../../src/shared/revealCopy';
-import { SCENES, beatsFor, nextPos, prevPos, type NavCtx, type Pos, type SnapshotRow, type WorldKey } from '../../src/shared/reveal';
+import { SCENES, beatsFor, nextPos, prevPos, skipReason, type NavCtx, type Pos, type SnapshotRow, type WorldKey } from '../../src/shared/reveal';
 
 const raw = (o: Partial<RawRow>): RawRow => ({
   id: Math.random().toString(36).slice(2), kind: 'human', stage: 'done', removed_at: null, started_at: 1, score: 600,
@@ -163,7 +163,7 @@ describe('navigation', () => {
     let p: Pos = { scene: 'onegame', beat: 0 };
     const seen = [p];
     for (let n = nextPos(p, c); n; n = nextPos(p, c)) seen.push((p = n));
-    const total = SCENES.filter((s) => !['lobby', 'playing', 'hold'].includes(s.id)).reduce((a, s) => a + beatsFor(s.id, c), 0);
+    const total = SCENES.filter((s) => !['lobby', 'playing', 'hold'].includes(s.id) && !skipReason(s.id, c)).reduce((a, s) => a + beatsFor(s.id, c), 0);
     expect(seen).toHaveLength(total);
     for (let n = prevPos(p, c); n; n = prevPos(p, c)) p = n;
     expect(p).toEqual({ scene: 'onegame', beat: 0 });

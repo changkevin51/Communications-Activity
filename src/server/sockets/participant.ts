@@ -2,7 +2,8 @@ import type { Namespace, Socket } from 'socket.io';
 import type { ZodType } from 'zod';
 import type { Db } from '../db/db';
 import type { Hub } from '../hub';
-import { FinishReq, JoinReq, RateReq, SeenReq, StartReq, type Ack } from '../../shared/protocol';
+import { AnswerReq, FinishReq, JoinReq, RateReq, SeenReq, StartReq, type Ack } from '../../shared/protocol';
+import { answer } from '../services/discussion';
 import { finish, join, rate, seen, start, touch, type CmdResult } from '../services/participant';
 import { buildView } from '../views';
 import { logEvent } from '../db/repo';
@@ -67,6 +68,7 @@ export function registerParticipantNs(ns: Namespace, db: Db, hub: Hub) {
     on('finish', FinishReq, needPid((id, req, now) => finish(db, id, req, now)));
     on('rate', RateReq, needPid((id, req, now) => rate(db, id, req, now)));
     on('seen', SeenReq, needPid((id, req, now) => seen(db, id, req, now)));
+    on('answer', AnswerReq, needPid((id, req, now) => answer(db, id, req, now)));
 
     socket.on('clock', (_payload: unknown, ack: unknown) => {
       if (typeof ack === 'function') (ack as AckFn)({ serverNow: Date.now() });

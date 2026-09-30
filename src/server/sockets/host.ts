@@ -45,7 +45,7 @@ export function registerHostNs(ns: Namespace, db: Db, hub: Hub, adminKey: string
   });
 
   ns.on('connection', (socket: Socket) => {
-    const allow = tokenBucket(20, 40);
+    const allow = tokenBucket(20, 80);
     const participantIds = (sessionId: string) =>
       db.all<{ id: string }>("SELECT id FROM participants WHERE session_id = ? AND kind = 'human'", sessionId).map((r) => r.id);
     const view = (sessionId: string) => hostView(db, sessionId, hub.connectedSet());
@@ -60,7 +60,7 @@ export function registerHostNs(ns: Namespace, db: Db, hub: Hub, adminKey: string
         try {
           cb({ ok: true, ...fn(parsed.data, Date.now()) });
         } catch (e) {
-          const known = e instanceof BotError || (e instanceof Error && /^[A-Z_]+$/.test(e.message));
+          const known = e instanceof BotError || (e instanceof Error && /^[A-Z0-9_]+$/.test(e.message));
           cb({ ok: false, reason: known ? (e as Error).message : 'ERROR' });
         }
       });

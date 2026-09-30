@@ -15,6 +15,7 @@ import { Calibrating } from './screens/Calibrating';
 import { Recap } from './screens/Recap';
 import { Done } from './screens/Done';
 import { Problem } from './screens/Problem';
+import { Prompt } from './screens/Prompt';
 
 function codeFromPath(): string | null {
   const seg = location.pathname.replace(/^\/+|\/+$/g, '').toUpperCase();
@@ -88,10 +89,12 @@ function Room({ code, onLeave }: { code: string; onLeave: () => void }) {
     else screen = <Recap view={view} busy={busy} onDone={(dialDwellMs) => void send('seen', { dialDwellMs })} />;
   } else if (st === 'recap_seen') screen = <Rating key="after" view={view} busy={busy} onSubmit={(v) => void send('rate', { phase: 'after', ...v })} />;
   else screen = <Done view={view} />;
+  const pr = view.room.prompt;
+  if (pr && !pr.answered && (st === 'done' || st === 'joined')) screen = <Prompt key={`${pr.id}:${pr.run}`} view={view} prompt={pr} send={(e, p) => conn.send(e, p)} />;
   return (
     <>
       {pill}
-      {view.room.screen === 'look' && st !== 'done' && st !== 'removed' && (
+      {view.room.screen && view.room.screen !== 'end' && st !== 'done' && st !== 'removed' && (
         <div className="late-banner mono" role="status" data-testid="late-banner">The main screen has started. Finish when you're ready.</div>
       )}
       {screen}
