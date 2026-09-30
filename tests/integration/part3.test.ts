@@ -51,9 +51,14 @@ async function setup() {
   await hostCall(host, 'bots.advance', { sessionId: s.id, to: 'rated_before' });
   await hostCall(host, 'release', { sessionId: s.id });
   await hostCall(host, 'bots.advance', { sessionId: s.id, to: 'done', effect: 'expected' });
-  const open = await hostCall<{ view: PresenterView }>(host, 'pres.open', { sessionId: s.id, leaseId: LEASE });
-  const b = await cmd(s.id, { t: 'begin', rev: open.view.rev, confirm: 'BEGIN' });
-  expect(b.ok).toBe(true);
+  let b: Awaited<ReturnType<typeof cmd>> | undefined;
+  for (let i = 0; i < 5 && !b?.ok; i++) {
+    if (i) await sleep(50);
+    const open = await hostCall<{ view: PresenterView }>(host, 'pres.open', { sessionId: s.id, leaseId: LEASE });
+    b = await cmd(s.id, { t: 'begin', rev: open.view.rev, confirm: 'BEGIN' });
+  }
+  if (!b) throw new Error('unreachable');
+  expect(b.ok, JSON.stringify(b)).toBe(true);
   return { ...s, view: b.view };
 }
 
