@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: signal-shift
+    name: commst100-discussion
     runtime: node
     region: ohio
     plan: standard
