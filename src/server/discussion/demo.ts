@@ -13,17 +13,16 @@ const slider = (rng: Rng, mean: number, sd: number) => Math.round(clamp(mean + n
 
 const TURNOUT: Record<Profile, number> = { expected: 0.9, onesided: 0.95, split: 0.9, low: 0.25, unexpected: 0.85, optionalzero: 0.9 };
 
-function one(rng: Rng, prompt: PromptId, profile: Profile): AnswerValue {
-  if (rng() < 0.05) return { skip: true };
+export function demoAnswer(rng: Rng, prompt: PromptId, profile: Profile): AnswerValue {
   switch (prompt) {
     case 'felt': {
       const w: Record<Profile, [string, number][]> = {
-        expected: [['yes', 2], ['little', 4], ['no', 5], ['didnt', 1]],
-        onesided: [['yes', 1], ['little', 1], ['no', 12], ['didnt', 1]],
-        split: [['yes', 3], ['little', 3], ['no', 3], ['didnt', 3]],
-        low: [['yes', 1], ['little', 2], ['no', 2], ['didnt', 1]],
-        unexpected: [['yes', 9], ['little', 3], ['no', 1], ['didnt', 0]],
-        optionalzero: [['yes', 2], ['little', 4], ['no', 5], ['didnt', 1]],
+        expected: [['yes', 3], ['some', 3.5], ['little', 4], ['no', 2.5], ['didnt', 0.5]],
+        onesided: [['yes', 12], ['some', 1], ['little', 1], ['no', 1], ['didnt', 1]],
+        split: [['yes', 3], ['some', 3], ['little', 3], ['no', 3], ['didnt', 3]],
+        low: [['yes', 1], ['some', 1], ['little', 2], ['no', 2], ['didnt', 1]],
+        unexpected: [['yes', 1], ['some', 1], ['little', 2], ['no', 9], ['didnt', 1]],
+        optionalzero: [['yes', 2], ['some', 2], ['little', 4], ['no', 5], ['didnt', 1]],
       };
       return { c: pick(rng, w[profile]) };
     }
@@ -53,6 +52,9 @@ export function demoAnswers(prompt: PromptId, profile: Profile, n: number, seed:
   if (profile === 'optionalzero' && prompt === 'landscape') return { values: [], eligible: n };
   const rng = rngFrom(`${seed}:p3:${prompt}:${profile}`);
   const values: AnswerValue[] = [];
-  for (let i = 0; i < n; i++) if (rng() < TURNOUT[profile]) values.push(one(rng, prompt, profile));
+  for (let i = 0; i < n; i++) {
+    if (rng() >= TURNOUT[profile]) continue;
+    values.push(demoAnswer(rng, prompt, profile));
+  }
   return { values, eligible: n };
 }

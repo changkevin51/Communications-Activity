@@ -1,4 +1,5 @@
 import { clamp, normal, rngFrom, shuffle, type Rng } from '../../shared/rng';
+import { groupDeltas } from './deltas';
 import { WORLDS, type SnapshotRow, type WorldKey } from '../../shared/reveal';
 import { bandFor, computeThresholds, inBand } from '../assign/thresholds';
 
@@ -20,7 +21,7 @@ export const SPECS: Record<Scenario, Spec> = {
 
 const r1d = (x: number) => Math.round(x * 10) / 10;
 
-function pickPeers(rng: Rng, score: number, world: WorldKey, pool: number[], th: ReturnType<typeof computeThresholds>, idx: number) {
+export function pickPeers(rng: Rng, score: number, world: WorldKey, pool: number[], th: ReturnType<typeof computeThresholds>, idx: number) {
   const band = bandFor(score, world, th);
   const target = world === 'up' ? score + th.targetGap : world === 'down' ? score - th.targetGap : score;
   const real = pool
@@ -75,6 +76,18 @@ export function demoRows(scenario: Scenario, n: number, seed: string): { rows: S
     if (scenario === 'imbalanced' && w === 'down') r2 = downKept++ === 0 ? r2 ?? r1 : null;
     return { kind: 'human', score, r1, r2, world: w, stratum: stratum[i], peers: pickPeers(rng, score, w, scores, th, i), dwellMs: Math.round(3000 + rng() * 5000) };
   });
+  for (const w of WORLDS) {
+    const members = rows.filter((r) => r.world === w && r.r2 !== null && r.r1 !== null);
+    const deltas = groupDeltas(rng, members.length, spec.effect[w]);
+    members.forEach((row, i) => {
+      const delta = deltas[i] ?? 0;
+      const lo = Math.min(Math.max(0, -delta), 100);
+      const hi = Math.max(lo, Math.min(100, 100 - delta));
+      const base = r1d(clamp(row.r1 as number, lo, hi));
+      row.r1 = base;
+      row.r2 = r1d(clamp(base + delta, 0, 100));
+    });
+  }
   const shuffled = shuffle(rng, rows).map((r, k) => ({ k, ...r }));
   return { rows: shuffled, stillFinishing: spec.stillFinishing };
 }

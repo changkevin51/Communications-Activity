@@ -166,4 +166,7 @@ CREATE TABLE responses (
   FOREIGN KEY (session_id, prompt, run) REFERENCES prompt_runs(session_id, prompt, run) ON DELETE CASCADE
 );
 `,
+  `
+ALTER TABLE participants ADD COLUMN bot_json TEXT;
+`,
 ];

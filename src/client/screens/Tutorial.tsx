@@ -6,9 +6,9 @@ import { BarButton } from '../ui/BarButton';
 
 const CAPTIONS: Partial<Record<Phase, string>> = { cue: 'Memorize the grid.', study: 'Memorize the grid.', mask: 'Blink.', test: 'Tap the one that changed.' };
 
-type Props = { seed: string; onDone: (practice: { tries: number; correct: number }) => void; busy: boolean };
+type Props = { seed: string; play: boolean; onDone: (practice: { tries: number; correct: number }) => void; busy: boolean };
 
-export function Tutorial({ seed, onDone, busy }: Props) {
+export function Tutorial({ seed, play, onDone, busy }: Props) {
   const board = useRef<HTMLDivElement>(null);
   const [caption, setCaption] = useState('Memorize the grid.');
   const [ready, setReady] = useState(false);
@@ -43,9 +43,9 @@ export function Tutorial({ seed, onDone, busy }: Props) {
         <div className="topline mono"><span>Practice</span><span>Done</span></div>
         <div className="body">
           <h1 className="display h1">12 rounds.<br />It gets harder.<br /><span className="accent">Ready?</span></h1>
-          <p className="lede">Everyone's game is a little different.</p>
+          <p className="lede">{play ? "Everyone's game is a little different." : 'Wait for the room to start.'}</p>
         </div>
-        <BarButton disabled={busy} onClick={() => onDone(stats.current)} data-testid="go">Go</BarButton>
+        <BarButton disabled={busy || !play} onClick={() => onDone(stats.current)} data-testid="go">Go</BarButton>
       </main>
     );
   }

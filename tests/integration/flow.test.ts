@@ -3,7 +3,7 @@ import type { AddressInfo } from 'node:net';
 import type { Socket } from 'socket.io-client';
 import { openDb, type Db } from '../../src/server/db/db';
 import { createApp } from '../../src/server/app';
-import { Player, hostCall, hostClient } from '../helpers/player';
+import { Player, hostCall, hostClient, openPlay } from '../helpers/player';
 
 const KEY = 'test-key';
 const FORBIDDEN = ['condition', 'ghost', 'stratum', 'threshold', 'band', 'batch', 'kind', 'peer_kind', 'diff', 'bot'];
@@ -16,7 +16,7 @@ const players: Player[] = [];
 
 beforeEach(async () => {
   db = openDb(':memory:');
-  const { app } = await createApp({ db, adminKey: KEY, hostDebounceMs: 10 });
+  const { app } = await createApp({ db, adminKey: KEY, hostDebounceMs: 10, botTickMs: 0 });
   await app.listen({ port: 0, host: '127.0.0.1' });
   url = `http://127.0.0.1:${(app.server.address() as AddressInfo).port}`;
   close = async () => {
@@ -63,8 +63,47 @@ describe('participant flow', () => {
     expect(await p.start()).toEqual({ ok: false, reason: 'NOT_JOINED' });
   });
 
+  it('releases waiting phones when the presenter moves to stand-by', async () => {
+    const s = await newSession();
+    const lease = 'lease-open-play01';
+    expect((await openPlay(host, s.id, lease)).ok).toBe(true);
+    const cur = await hostCall<{ view: { rev: number; scene: string } }>(host, 'pres.open', { sessionId: s.id, leaseId: lease });
+    expect(cur.view.scene).toBe('playing');
+    const p = player(s.code);
+    await p.join();
+    await p.start();
+    await p.finish(0.8);
+    await p.rate('before', 40);
+    expect(p.view!.me.stage).toBe('rated_before');
+    const held = await hostCall<{ view: { rev: number; scene: string; phase: string } }>(host, 'pres.cmd', {
+      sessionId: s.id,
+      leaseId: lease,
+      cmd: { t: 'next', rev: cur.view.rev },
+    });
+    expect(held.ok).toBe(true);
+    expect(held.view.scene).toBe('hold');
+    expect(held.view.phase).toBe('released');
+    const v = await p.waitFor((x) => x.me.stage === 'assigned');
+    expect(v.recap!.others).toHaveLength(3);
+  });
+
+  it('stays joined until the host presses next', async () => {
+    const s = await newSession();
+    const p = player(s.code);
+    const j = await p.join();
+    expect(j.ok && j.view.room.play).toBe(false);
+    expect(await p.start()).toEqual({ ok: false, reason: 'WAIT' });
+    expect(p.view!.me.stage).toBe('joined');
+    expect((await openPlay(host, s.id)).ok).toBe(true);
+    const v = await p.waitFor((x) => x.room.play);
+    expect(v.me.stage).toBe('joined');
+    const st = await p.start();
+    expect(st.ok && st.view.me.stage).toBe('playing');
+  });
+
   it('full release flow with idempotency, reconnect, and no leaks', async () => {
     const s = await newSession();
+    expect((await openPlay(host, s.id)).ok).toBe(true);
     const ps = Array.from({ length: 9 }, () => player(s.code));
     for (const [i, p] of ps.entries()) {
       const j = await p.join();
@@ -122,6 +161,7 @@ describe('participant flow', () => {
 
   it('late finisher is assigned instantly after release, and closed room rejects new joins', async () => {
     const s = await newSession();
+    expect((await openPlay(host, s.id)).ok).toBe(true);
     const a = player(s.code);
     await a.join();
     await a.start();
@@ -150,6 +190,7 @@ describe('participant flow', () => {
     host.on('hostView', (v) => views.push(v));
     await hostCall(host, 'watch', { sessionId: t.id });
     expect((await hostCall(host, 'bots.spawn', { sessionId: t.id, n: 30 })).ok).toBe(true);
+    expect(db.get<{ n: number }>("SELECT COUNT(*) AS n FROM participants WHERE session_id = ? AND kind = 'bot' AND stage = 'joined'", t.id)?.n).toBe(30);
     await hostCall(host, 'bots.advance', { sessionId: t.id, to: 'rated_before' });
     const rel = await hostCall<{ released: number }>(host, 'release', { sessionId: t.id });
     expect(rel.released).toBe(30);

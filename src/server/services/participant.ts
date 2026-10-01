@@ -7,6 +7,7 @@ import { scoreAttempt } from '../../shared/game/scoring';
 import type { FinishReqT, RateReqT, SeenReqT, StartReqT } from '../../shared/protocol';
 import { sha256 } from '../auth';
 import { assignLate } from './assignment';
+import { playReleased } from '../db/repo';
 import {
   addFlag,
   attemptSeed,
@@ -24,7 +25,7 @@ import {
 
 export type CmdResult =
   | { ok: true; pid: string; sessionId: string; changed: boolean }
-  | { ok: false; reason: 'NO_ROOM' | 'CLOSED' | 'NOT_JOINED' | 'WRONG_STAGE' | 'BAD_REQUEST' };
+  | { ok: false; reason: 'NO_ROOM' | 'CLOSED' | 'NOT_JOINED' | 'WRONG_STAGE' | 'WAIT' | 'BAD_REQUEST' };
 
 export const MIN_PLAY_MS = 25_000;
 export const MIN_MEDIAN_RT = 250;
@@ -72,6 +73,7 @@ export function start(db: Db, pid: string, req: StartReqT, now: number): CmdResu
     if (!ctx) return { ok: false, reason: 'NOT_JOINED' };
     const { p, s } = ctx;
     if (p.removed_at || p.stage !== 'joined') return { ok: true, pid, sessionId: s.id, changed: false };
+    if (!playReleased(db, s.id)) return { ok: false, reason: 'WAIT' };
     const cfg = sessionConfig(s);
     db.run(
       `INSERT INTO attempts (participant_id, session_id, game_version, seed, study_scale, status, started_at, stats_json)
@@ -157,7 +159,7 @@ export function rate(db: Db, pid: string, req: RateReqT, now: number): CmdResult
       if (stage !== 'scored') return { ok: true, pid, sessionId: s.id, changed: false };
       insert();
       setStage(db, pid, 'rated_before', now);
-      if (s.phase === 'released' || sessionConfig(s).assignMode === 'instant') assignLate(db, s, pid, now);
+      if (s.released_at !== null || sessionConfig(s).assignMode === 'instant') assignLate(db, s, pid, now);
       return { ok: true, pid, sessionId: s.id, changed: true };
     }
     if (!atOrPast(stage, 'assigned')) return { ok: false, reason: 'WRONG_STAGE' };

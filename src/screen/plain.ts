@@ -23,7 +23,7 @@ export function plainFrame(st: Pick<ScreenState, 'scene' | 'beat' | 'live' | 'co
       return { kicker: st.concept?.title || 'CONCEPT', headline: q ? `“${q.text}”` : 'THE CONCEPT', lines: q ? [`${q.source}${q.page ? `, p. ${q.page}` : ''}`] : [] };
     }
     case 'end':
-      return { kicker: 'SIGNAL SHIFT', headline: 'THANK YOU.', lines: ['All data stays anonymous.', ...(st.late ? [`+${st.late} finished after we froze the data.`] : [])] };
+      return { kicker: 'SIGNAL SHIFT', headline: 'THANK YOU.', lines: ['All data stays anonymous.', 'Just kidding.', '(Just kidding.)', ...(st.late ? [`+${st.late} finished after we froze the data.`] : [])] };
   }
   if (!d) return { kicker: 'SIGNAL SHIFT', headline: 'ONE MOMENT', lines: ['Loading the class data…'] };
   const w = d.worlds;
@@ -81,7 +81,6 @@ export function plainFrame(st: Pick<ScreenState, 'scene' | 'beat' | 'live' | 'co
         lines: [
           ...WORLDS.map((k) => `${WORLD_PLAIN[k]}: ${fmt(w[k].meanDelta, 'delta')}`),
           ...(b >= 1 ? [c.support] : []),
-          ...(b >= 2 ? [`One class, ${d.n.paired} people. A real study would repeat this many times.`] : []),
         ],
       };
     }

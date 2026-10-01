@@ -4,7 +4,7 @@ import { demoAnswers } from '../../src/server/discussion/demo';
 import { PROMPTS } from '../../src/shared/discussionContent';
 import { PROFILES, PROMPT_IDS, ROLES, type AnswerValue } from '../../src/shared/discussion';
 import { SCENES, beatsFor, nextPos, type NavCtx, type Pos } from '../../src/shared/reveal';
-import { part3Frame } from '../../src/screen/part3Copy';
+import { feelWord, part3Frame, resultLines } from '../../src/screen/part3Copy';
 
 const SENSITIVE = /\b(income|money|mental|romantic|dating|body|weight|family|religion|ethnic|gender|sexual)\b/i;
 
@@ -14,15 +14,24 @@ describe('Part 3 content', () => {
       const p = PROMPTS[id];
       expect(p.id).toBe(id);
       expect(ROLES[p.scene]).toContain('ask');
-      expect(p.skipLabel.length).toBeGreaterThan(0);
       const text = [p.title, p.body, ...(p.choices ?? []).map((c) => c.label), ...(p.sliders ?? []).map((x) => x.label)].join(' ');
       expect(text).not.toMatch(SENSITIVE);
       if (p.kind === 'sliders') expect(p.sliders!.length).toBeGreaterThanOrEqual(2);
       else expect(new Set(p.choices!.map((c) => c.id)).size).toBe(p.choices!.length);
     }
-    expect(PROMPTS.felt.choices!.map((c) => c.label)).toEqual(['Yes, noticeably', 'A little', 'Not really', "I didn't really look at them"]);
+    expect(PROMPTS.felt.choices!.map((c) => c.label)).toEqual(['Yes, noticeably', 'Somewhat', 'A little', 'Not really', "I didn't really look at them"]);
     expect(PROMPTS.switch.sliders).toHaveLength(3);
     expect(PROMPTS.mirrors.sliders).toHaveLength(2);
+  });
+
+  it('labels slider positions and plain-mode results', () => {
+    expect([0, 20, 40, 60, 80].map(feelWord)).toEqual(['BAD', 'NOT GREAT', 'OKAY', 'GOOD', 'REALLY GOOD']);
+    const values: AnswerValue[] = [...Array(5)].map(() => ({ v: [62, 38, 79] }));
+    expect(resultLines(aggregate('switch', 1, 'live', values, 5))).toEqual([
+      'MOST GOT ~90%: most slid to “GOOD” (62/100)',
+      'AVERAGE WAS 78%: most slid to “NOT GREAT” (38/100)',
+      'MOST GOT ~60%: most slid to “GOOD” (79/100)',
+    ]);
   });
 
   it('landscape is off by default and the walk reaches end', () => {
@@ -35,6 +44,7 @@ describe('Part 3 content', () => {
     expect(walk(c)).not.toContain('landscape');
     expect(walk({ ...c, flags: { landscape: true } })).toContain('landscape');
     expect(walk(c).at(-1)).toBe('end');
+    expect(beatsFor('compare', c)).toBe(2);
     expect(beatsFor('felt', c)).toBe(3);
     expect(beatsFor('felt', { ...c, concept: { title: '', quotes: [], slots: { felt: { text: 'q', source: 's', page: '1' } } } })).toBe(4);
     expect(SCENES.findIndex((s) => s.id === 'bridge')).toBeGreaterThan(SCENES.findIndex((s) => s.id === 'mechanism'));
@@ -66,11 +76,11 @@ describe('aggregate', () => {
     expect(r.skipped).toBe(1);
   });
   it('counts single choice and is order-independent', () => {
-    const vs: AnswerValue[] = ['yes', 'yes', 'little', 'no', 'didnt', 'little', 'yes'].map((c) => ({ c }));
-    const a = aggregate('felt', 1, 'live', vs, 7);
-    const b = aggregate('felt', 1, 'live', [...vs].reverse(), 7);
+    const vs: AnswerValue[] = ['yes', 'yes', 'some', 'little', 'no', 'didnt', 'little', 'yes'].map((c) => ({ c }));
+    const a = aggregate('felt', 1, 'live', vs, 8);
+    const b = aggregate('felt', 1, 'live', [...vs].reverse(), 8);
     expect(a).toEqual(b);
-    expect(a.counts).toEqual([{ id: 'yes', n: 3 }, { id: 'little', n: 2 }, { id: 'no', n: 1 }, { id: 'didnt', n: 1 }]);
+    expect(a.counts).toEqual([{ id: 'yes', n: 3 }, { id: 'some', n: 1 }, { id: 'little', n: 2 }, { id: 'no', n: 1 }, { id: 'didnt', n: 1 }]);
   });
   it('nulls small multi-select cells', () => {
     const vs: AnswerValue[] = [...Array(6)].map(() => ({ cs: ['school'] }));

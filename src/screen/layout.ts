@@ -53,6 +53,27 @@ export function ratingY(y0 = 820, y1 = 260) {
   return scale(0, 100, y0, y1);
 }
 
+/** Zoom the movement lanes around the ratings actually on screen, so small disagreements and one long jump both read. */
+export function movementRatingY(d: RevealData) {
+  const vals: number[] = [];
+  for (const m of d.marks) {
+    if (m.r1 !== null) vals.push(m.r1);
+    if (m.r2 !== null) vals.push(m.r2);
+  }
+  if (vals.length < 2) return ratingY(930, 400);
+  let lo = Math.min(...vals);
+  let hi = Math.max(...vals);
+  const pad = Math.max(8, (hi - lo) * 0.22);
+  lo -= pad;
+  hi += pad;
+  if (hi - lo < 28) {
+    const mid = (lo + hi) / 2;
+    lo = mid - 14;
+    hi = mid + 14;
+  }
+  return scale(lo, hi, 940, 380);
+}
+
 export function clampToSafe(t: Target): Target {
   return {
     ...t,

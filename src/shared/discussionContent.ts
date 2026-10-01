@@ -16,7 +16,6 @@ export type PromptSpec = {
   max?: number;
   sliders?: Slider[];
   anchors?: [string, string];
-  skipLabel: string;
   submitLabel: string;
 };
 
@@ -30,11 +29,11 @@ export const PROMPTS: Record<PromptId, PromptSpec> = {
     body: 'Private. Only totals appear on the screen.',
     choices: [
       { id: 'yes', label: 'Yes, noticeably', short: 'NOTICEABLY' },
+      { id: 'some', label: 'Somewhat', short: 'SOMEWHAT' },
       { id: 'little', label: 'A little', short: 'A LITTLE' },
       { id: 'no', label: 'Not really', short: 'NOT REALLY' },
       { id: 'didnt', label: "I didn't really look at them", short: "DIDN'T LOOK" },
     ],
-    skipLabel: 'Skip',
     submitLabel: 'Send',
   },
   switch: {
@@ -50,7 +49,6 @@ export const PROMPTS: Record<PromptId, PromptSpec> = {
       { id: 'lo', label: '…most people in your program got around 60%?', short: 'MOST GOT ~60%' },
     ],
     anchors: ['Not good at all', 'Really good'],
-    skipLabel: 'Skip',
     submitLabel: 'Send',
   },
   landscape: {
@@ -72,7 +70,6 @@ export const PROMPTS: Record<PromptId, PromptSpec> = {
     ],
     exclusive: ['none'],
     max: 3,
-    skipLabel: 'Prefer not to say',
     submitLabel: 'Send',
   },
   mirrors: {
@@ -87,7 +84,6 @@ export const PROMPTS: Record<PromptId, PromptSpec> = {
       { id: 'friend', label: "…a friend told Alex their part was the clearest?", short: 'A FRIEND SAID "CLEAREST"', sub: 'REFLECTED APPRAISAL' },
     ],
     anchors: ['Not good at all', 'Really good'],
-    skipLabel: 'Skip',
     submitLabel: 'Send',
   },
 };
@@ -100,7 +96,7 @@ export const SCREEN_COPY: Record<Part3Scene, BeatCopy[]> = {
   felt: [
     { kicker: 'DID IT WORK ON YOU?', headline: 'DID SEEING THE OTHER THREE CHANGE HOW YOU FELT ABOUT YOUR SCORE?' },
     { kicker: 'DID IT WORK ON YOU?', headline: 'WHAT YOU SAID.' },
-    { kicker: 'DID IT WORK ON YOU?', headline: 'WHAT YOU SAID VS. WHAT YOUR RATINGS DID.' },
+    { kicker: 'DID IT WORK ON YOU?', headline: 'WHAT YOU SAID — AND WHAT YOUR RATINGS DID.' },
     { kicker: 'SOCIAL COMPARISON', headline: '' },
   ],
   switch: [
@@ -152,44 +148,4 @@ export const SCENE_TITLES: Record<Part3Scene, string> = {
   mirrors: 'Two mirrors',
   chooser: 'Who chose?',
   circle: 'Full circle',
-};
-
-/** Presenter notes: one list per beat. SAY / ASK / FOLLOW-UP / DON'T SAY YET. */
-export const NOTES3: Record<Part3Scene, string[][]> = {
-  bridge: [['SAY: "You just saw what happened to the class. Now I want to know what it felt like from the inside."', 'Phones will light up on the next beat.']],
-  felt: [
-    ['SAY: "Honest answers — nobody sees yours."', 'Wait for the count to level off, then → to close.', "DON'T SAY YET: the measured result."],
-    ['ASK: "Anyone surprised by this split?"'],
-    ['ASK: "If most of us said \'not really\', why did the ratings still move?"', 'FOLLOW-UP: comparison often works without us noticing.'],
-    ['Textbook link (only shows if a quote is saved for this slot).'],
-  ],
-  switch: [
-    ['SAY: "Same 78% every time. Only the room changes."', 'Close when the count levels off.'],
-    ['Let the dots travel. Point at the 78% that never moved.'],
-    ['ASK: "What changed between the three rooms?"', 'FOLLOW-UP: the reference group — the people you use as the yardstick.'],
-    ['Textbook link (only shows if a quote is saved for this slot).'],
-  ],
-  landscape: [
-    ['Optional. Low-risk categories only. Close after ~40 s.'],
-    ['ASK: "Which of these did you pick on purpose?"'],
-    ['FOLLOW-UP: most of these rooms are chosen by someone else — a feed, a ranking, a group chat.'],
-  ],
-  mirrors: [
-    ['SAY: "Alex is made up. Read both situations."'],
-    ['Close when the count levels off.'],
-    ['ASK: "Same work. Why would Alex feel different?"'],
-    ['Name both: social comparison (sideways) vs. reflected appraisal (how others see you).', 'ASK: "Which one happened in our game?"'],
-    ['Textbook link (only shows if a quote is saved for this slot).'],
-  ],
-  chooser: [
-    ['Walk the four boxes. "The only box you didn\'t control was the second one."'],
-    ['SAY: "Now swap that box for a feed."', 'No brand names needed; let students fill them in.'],
-    ['ASK: "Who picks your comparisons the rest of the week?"'],
-    ['Textbook link (only shows if a quote is saved for this slot).'],
-  ],
-  circle: [
-    ['Back to the real scores from the start. Nothing moves.'],
-    ['Same dots, now colored by the room each person saw.'],
-    ['Read the last line slowly. Then stop.'],
-  ],
 };

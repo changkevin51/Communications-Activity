@@ -62,7 +62,7 @@ function Room({ code, onLeave }: { code: string; onLeave: () => void }) {
     setBusy(true);
     const res: Ack = await conn.send(event, payload);
     setBusy(false);
-    if (!res.ok && res.reason !== 'WRONG_STAGE') setProblem(true);
+    if (!res.ok && res.reason !== 'WRONG_STAGE' && res.reason !== 'WAIT') setProblem(true);
     return res;
   };
 
@@ -77,7 +77,7 @@ function Room({ code, onLeave }: { code: string; onLeave: () => void }) {
   if (st === 'removed') screen = <Problem title="Signal ended." body="This run was reset by the host." />;
   else if (st === 'joined') {
     if (local !== 'tutorial') screen = <Identity codename={view.me.codename} sigil={view.me.sigil} onNext={() => step('tutorial')} />;
-    else screen = <Tutorial seed={view.game!.seed} busy={busy} onDone={(practice) => void send('start', { practice })} />;
+    else screen = <Tutorial seed={view.game!.seed} play={view.room.play} busy={busy} onDone={(practice) => void send('start', { practice })} />;
   } else if (st === 'playing') {
     screen = <Game seed={view.game!.seed} studyScale={view.game!.studyScale} onDone={(r: GameResult) => void send('finish', r)} />;
   } else if (st === 'scored') {

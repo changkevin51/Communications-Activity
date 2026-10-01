@@ -75,6 +75,7 @@ export function registerPresenter(socket: Socket, on: On, db: Db, hub: Hub) {
   on('pres.cmd', CmdReq, (req, now) => {
     hold(req.sessionId, req.leaseId);
     const res = command(db, req.sessionId, req.leaseId, req.cmd as Cmd, now);
+    if (res.ok && res.refresh?.length) hub.pushViews(res.refresh);
     if (res.ok && res.changed) hub.pushPresentation(req.sessionId);
     if (res.ok && res.lookChanged) hub.pushSessionViews(req.sessionId);
     else if (res.ok && res.changed) hub.pushHost(req.sessionId);

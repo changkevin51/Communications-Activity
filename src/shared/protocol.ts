@@ -74,7 +74,6 @@ export type PhonePrompt = {
   max?: number;
   sliders?: { id: string; label: string }[];
   anchors?: [string, string];
-  skipLabel: string;
   submitLabel: string;
   answered: boolean;
 };
@@ -86,7 +85,7 @@ export type OtherPlayer = { codename: string; sigil: Sigil; score: number };
 export type ParticipantView = {
   rev: number;
   serverNow: number;
-  room: { code: string; open: boolean; screen?: RoomScreen; prompt?: PhonePrompt };
+  room: { code: string; open: boolean; play: boolean; screen?: RoomScreen; prompt?: PhonePrompt };
   me: { codename: string; sigil: Sigil; stage: Stage | 'removed' };
   game?: { version: string; seed: string; studyScale: number };
   result?: { score: number; avgLockMs: number | null; bestStreak: number; fastestMs: number | null };
@@ -96,6 +95,6 @@ export type ParticipantView = {
 
 export type Ack<T = ParticipantView> =
   | { ok: true; view: T }
-  | { ok: false; reason: 'NO_ROOM' | 'CLOSED' | 'BAD_REQUEST' | 'NOT_JOINED' | 'WRONG_STAGE' | 'RATE_LIMIT' | 'ERROR' };
+  | { ok: false; reason: 'NO_ROOM' | 'CLOSED' | 'BAD_REQUEST' | 'NOT_JOINED' | 'WRONG_STAGE' | 'WAIT' | 'RATE_LIMIT' | 'ERROR' };
 
 export type ClockAck = { serverNow: number };

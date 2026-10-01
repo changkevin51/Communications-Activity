@@ -102,3 +102,14 @@ export function hostClient(url: string, key: string): Socket {
 export async function hostCall<T = Record<string, unknown>>(h: Socket, event: string, payload: unknown = {}): Promise<T & { ok: boolean; reason?: string }> {
   return (await h.timeout(10000).emitWithAck(event, payload)) as T & { ok: boolean; reason?: string };
 }
+
+/** Presenter Next off the lobby, which is what opens scored play on phones. */
+export async function openPlay(h: Socket, sessionId: string, leaseId = 'lease-open-play01') {
+  const opened = await hostCall<{ view: { rev: number; scene: string } }>(h, 'pres.open', { sessionId, leaseId });
+  if (!opened.ok || opened.view.scene !== 'lobby') return opened;
+  return hostCall<{ view: { rev: number; scene: string } }>(h, 'pres.cmd', {
+    sessionId,
+    leaseId,
+    cmd: { t: 'next', rev: opened.view.rev },
+  });
+}

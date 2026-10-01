@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import type { Ack, PhonePrompt, ParticipantView } from '../../shared/protocol';
 import { BarButton } from '../ui/BarButton';
 
-type Value = { c: string } | { cs: string[] } | { v: number[] } | { skip: true };
+type Value = { c: string } | { cs: string[] } | { v: number[] };
 type Props = { view: ParticipantView; prompt: PhonePrompt; send: (event: string, payload: unknown) => Promise<Ack> };
 
 const rid = () => `r${Array.from(crypto.getRandomValues(new Uint32Array(3)), (x) => x.toString(36)).join('')}`.slice(0, 32);
@@ -39,7 +39,7 @@ export function Prompt({ view, prompt, send }: Props) {
   const value: Value | null = useMemo(() => {
     if (prompt.kind === 'single') return pick[0] ? { c: pick[0] } : null;
     if (prompt.kind === 'multi') return pick.length ? { cs: pick } : null;
-    return vals.every((v) => v !== null) ? { v: vals as number[] } : null;
+    return { v: vals.map((v) => v ?? 50) };
   }, [prompt.kind, pick, vals]);
 
   const toggle = (c: string) => {
@@ -95,12 +95,9 @@ export function Prompt({ view, prompt, send }: Props) {
           </div>
         )}
         {prompt.sliders?.map((s, i) => (
-          <Slider key={s.id} label={s.label} anchors={prompt.anchors ?? ['0', '100']} value={vals[i]} onChange={(v) => setVals(vals.map((x, j) => (j === i ? v : x)))} />
+          <Slider key={s.id} label={s.label} anchors={prompt.anchors ?? ['0', '100']} value={vals[i]} onChange={(v) => setVals((cur) => cur.map((x, j) => (j === i ? v : x)))} />
         ))}
       </div>
-      <button type="button" className="p-skip mono" onClick={() => void submit({ skip: true })} disabled={state !== 'idle'} data-testid="prompt-skip">
-        {prompt.skipLabel}
-      </button>
       <BarButton disabled={!value || state !== 'idle'} onClick={() => value && void submit(value)} data-testid="prompt-send">
         {state === 'sending' ? 'Sending…' : prompt.submitLabel}
       </BarButton>

@@ -38,6 +38,7 @@ export type ParticipantRow = {
   last_seen_at: number | null;
   removed_at: number | null;
   flags_json: string;
+  bot_json: string | null;
 };
 
 export type AttemptRow = {
@@ -86,6 +87,13 @@ export function attemptSeed(sessionSeed: string, participantId: string): string 
 
 export function sessionConfig(s: SessionRow): SessionConfig {
   return JSON.parse(s.config_json) as SessionConfig;
+}
+
+export const assistOn = (s: SessionRow) => sessionConfig(s).assist !== false;
+
+export function playReleased(db: Db, sessionId: string): boolean {
+  const scene = db.get<{ scene: string }>('SELECT scene FROM presentations WHERE session_id = ?', sessionId)?.scene;
+  return !!scene && scene !== 'lobby';
 }
 
 export function getSession(db: Db, id: string) {

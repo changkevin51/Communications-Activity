@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { hostCall, hostClient } from '../helpers/player';
+import { hostCall, hostClient, openPlay } from '../helpers/player';
 
 const KEY = 'e2e-key';
 
@@ -21,6 +21,8 @@ test('participant happy path with host release and export', async ({ page, baseU
   expect(created.ok).toBe(true);
   if (!created.ok) return;
   const { id, code } = created.session;
+  const lease = 'lease-happy001';
+  expect((await openPlay(h, id, lease)).ok).toBe(true);
   expect((await hostCall(h, 'bots.spawn', { sessionId: id, n: 12, meanScore: 650, sd: 120 })).ok).toBe(true);
   expect((await hostCall(h, 'bots.advance', { sessionId: id, to: 'rated_before' })).ok).toBe(true);
 
@@ -69,7 +71,6 @@ test('participant happy path with host release and export', async ({ page, baseU
   await expect(page.getByTestId('done')).toBeVisible();
 
   expect((await hostCall(h, 'bots.advance', { sessionId: id, to: 'done' })).ok).toBe(true);
-  const lease = 'lease-happy001';
   let rev = (await hostCall<{ view: { rev: number } }>(h, 'pres.open', { sessionId: id, leaseId: lease })).view.rev;
   const pres = async (c: Record<string, unknown>) => {
     const r = await hostCall<{ view: { rev: number } }>(h, 'pres.cmd', { sessionId: id, leaseId: lease, cmd: { ...c, rev } });
@@ -94,7 +95,7 @@ test('participant happy path with host release and export', async ({ page, baseU
   await page.getByTestId('prompt-send').click();
   await expect(page.getByTestId('done')).toBeVisible();
   await pres({ t: 'goto', scene: 'mirrors', beat: 1 });
-  await page.getByTestId('prompt-skip').click();
+  await page.getByTestId('prompt-send').click();
   await expect(page.getByTestId('done')).toBeVisible();
   const phone = await page.locator('body').innerText();
   expect(phone).not.toMatch(/ghost|condition|upward|downward|stratum/i);

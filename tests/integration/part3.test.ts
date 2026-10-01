@@ -17,7 +17,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 beforeEach(async () => {
   db = openDb(':memory:');
-  const { app } = await createApp({ db, adminKey: KEY, hostDebounceMs: 10 });
+  const { app } = await createApp({ db, adminKey: KEY, hostDebounceMs: 10, botTickMs: 0 });
   await app.listen({ port: 0, host: '127.0.0.1' });
   url = `http://127.0.0.1:${(app.server.address() as AddressInfo).port}`;
   close = async () => {
@@ -48,8 +48,6 @@ async function setup() {
   const s = res.session;
   await hostCall(host, 'pres.open', { sessionId: s.id, leaseId: LEASE });
   await hostCall(host, 'bots.spawn', { sessionId: s.id, n: 20 });
-  await hostCall(host, 'bots.advance', { sessionId: s.id, to: 'rated_before' });
-  await hostCall(host, 'release', { sessionId: s.id });
   await hostCall(host, 'bots.advance', { sessionId: s.id, to: 'done', effect: 'expected' });
   let b: Awaited<ReturnType<typeof cmd>> | undefined;
   for (let i = 0; i < 5 && !b?.ok; i++) {
@@ -88,7 +86,9 @@ describe('Part 3 question lifecycle', () => {
     const scr = screen(s.code, s.view.screenKey);
     let v = (await cmd(s.id, { t: 'goto', rev: s.view.rev, scene: 'switch', beat: 0 })).view;
     expect(v.question?.phase).toBe('open');
-    const bots = v.question!.count;
+    const bots = 20;
+    expect(v.question!.count).toBe(0);
+    expect(v.question!.eligible).toBe(26);
     expect(v.part3At).not.toBeNull();
     const pr = (await ps[0].waitFor((x) => !!x.room.prompt)).room.prompt!;
     expect(pr.id).toBe('switch');
@@ -102,11 +102,11 @@ describe('Part 3 question lifecycle', () => {
     expect((await ps[1].send('answer', { ...req, rid: 'rid-00000002', value: { v: [30, 60] } })).ok).toBe(false);
     expect((await ps[1].send('answer', { ...req, prompt: 'nope', rid: 'rid-00000003' })).ok).toBe(false);
     for (const [i, p] of ps.slice(1).entries()) await p.send('answer', { ...req, rid: `rid-1000000${i}`, value: { v: [20 + i, 50 + i, 80 + i] } });
-    await until(() => scr.last()?.q?.count === bots + 6);
+    await until(() => scr.last()?.q?.count === 6);
     expect(scr.last().q?.result).toBeNull();
 
     v = (await hostCall<{ view: PresenterView }>(host, 'pres.open', { sessionId: s.id, leaseId: LEASE })).view;
-    expect(v.question?.count).toBe(bots + 6);
+    expect(v.question?.count).toBe(6);
     v = (await cmd(s.id, { t: 'next', rev: v.rev })).view;
     expect(v.question?.phase).toBe('frozen');
     const st = await until(() => (scr.last()?.q?.result ? scr.last() : undefined));

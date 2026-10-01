@@ -113,10 +113,27 @@ export function Rehearsal({ onRun, disabled }: { onRun: (scenario: string, n: nu
 const SLOTS = ['felt', 'switch', 'mirrors', 'chooser'] as const;
 const blank = (): ConceptQuote => ({ text: '', source: '', page: '' });
 
+const CHAPTER_QUOTES = {
+  ref: { text: 'others against whom we evaluate our own characteristics', source: 'Interplay, Chapter 3', page: '72' },
+  mirror: { text: "a mirroring of others' judgments", source: 'Interplay, Chapter 3', page: '72' },
+};
+
 export function ConceptEditor({ socket, sessionId, leaseId, initial }: { socket: Socket; sessionId: string; leaseId: string; initial: Concept }) {
   const [slots, setSlots] = useState<Record<string, ConceptQuote>>(() => Object.fromEntries(SLOTS.map((k) => [k, initial.slots?.[k] ?? blank()])));
   const [c, setC] = useState<Concept>(() => ({ title: initial.title, quotes: initial.quotes.length ? initial.quotes : [{ text: '', source: '', page: '' }] }));
   const [saved, setSaved] = useState('');
+  const insertChapter = () => {
+    setC((cur) => {
+      const quotes = (cur.quotes.length ? cur.quotes : [{ text: '', source: '', page: '' }]).map((q) => ({ ...q }));
+      if (!quotes[0].text.trim()) quotes[0] = { ...CHAPTER_QUOTES.ref };
+      return { title: cur.title.trim() ? cur.title : 'Reference groups', quotes };
+    });
+    setSlots((cur) => ({
+      ...cur,
+      mirrors: cur.mirrors.text.trim() ? cur.mirrors : { ...CHAPTER_QUOTES.mirror },
+    }));
+    setSaved('Filled. Save to show the concept slide and the mirrors quote.');
+  };
   const save = async () => {
     const filled = Object.fromEntries(Object.entries(slots).filter(([, q]) => q.text.trim()));
     const r = await call(socket, 'pres.concept', { sessionId, leaseId, concept: { ...c, quotes: c.quotes.filter((q) => q.text.trim()), slots: filled } });
@@ -134,17 +151,18 @@ export function ConceptEditor({ socket, sessionId, leaseId, initial }: { socket:
           <input placeholder="p." value={q.page} maxLength={20} onChange={(e) => setQ(i, 'page', e.target.value)} style={{ width: 60 }} aria-label={`Page ${i + 1}`} />
         </div>
       ))}
-      <div className="muted">Part 3 textbook slots (left empty = the term is shown without a quote):</div>
+      <div className="muted">Part 3 quote slots. Empty skips that beat. Save to show it. Chapter 3, p. 72: switch — reference groups; mirrors — reflected appraisal.</div>
       {SLOTS.map((k) => (
         <div key={k} className="row">
           <span className="mono" style={{ width: 70 }}>{k}</span>
-          <textarea placeholder="Quote" value={slots[k].text} maxLength={400} onChange={(e) => setSlots({ ...slots, [k]: { ...slots[k], text: e.target.value } })} aria-label={`${k} quote`} />
-          <input placeholder="Source" value={slots[k].source} maxLength={120} onChange={(e) => setSlots({ ...slots, [k]: { ...slots[k], source: e.target.value } })} aria-label={`${k} source`} />
-          <input placeholder="p." value={slots[k].page} maxLength={20} onChange={(e) => setSlots({ ...slots, [k]: { ...slots[k], page: e.target.value } })} style={{ width: 60 }} aria-label={`${k} page`} />
+          <textarea placeholder={k === 'switch' ? 'others against whom we evaluate our own characteristics' : k === 'mirrors' ? "a mirroring of others' judgments" : 'Quote'} value={slots[k].text} maxLength={400} onChange={(e) => setSlots({ ...slots, [k]: { ...slots[k], text: e.target.value } })} aria-label={`${k} quote`} />
+          <input placeholder={k === 'switch' || k === 'mirrors' ? 'Interplay, Ch. 3' : 'Source'} value={slots[k].source} maxLength={120} onChange={(e) => setSlots({ ...slots, [k]: { ...slots[k], source: e.target.value } })} aria-label={`${k} source`} />
+          <input placeholder={k === 'switch' || k === 'mirrors' ? '72' : 'p.'} value={slots[k].page} maxLength={20} onChange={(e) => setSlots({ ...slots, [k]: { ...slots[k], page: e.target.value } })} style={{ width: 60 }} aria-label={`${k} page`} />
         </div>
       ))}
       <div className="row">
         {c.quotes.length < 3 && <button onClick={() => setC({ ...c, quotes: [...c.quotes, { text: '', source: '', page: '' }] })}>Add quote</button>}
+        <button type="button" onClick={insertChapter}>Insert Chapter 3 quotes</button>
         <button onClick={() => void save()}>Save</button>
         <span className="muted">{saved}</span>
       </div>

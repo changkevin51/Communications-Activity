@@ -3,7 +3,7 @@ import type { AddressInfo } from 'node:net';
 import { io, type Socket } from 'socket.io-client';
 import { openDb, type Db } from '../../src/server/db/db';
 import { createApp } from '../../src/server/app';
-import { Player, hostCall, hostClient } from '../helpers/player';
+import { Player, hostCall, hostClient, openPlay } from '../helpers/player';
 import type { PresenterView, RevealData, ScreenState } from '../../src/shared/reveal';
 import type { ParticipantView } from '../../src/shared/protocol';
 
@@ -16,7 +16,7 @@ const sockets: { close(): unknown }[] = [];
 
 beforeEach(async () => {
   db = openDb(':memory:');
-  const { app } = await createApp({ db, adminKey: KEY, hostDebounceMs: 10 });
+  const { app } = await createApp({ db, adminKey: KEY, hostDebounceMs: 10, botTickMs: 0 });
   await app.listen({ port: 0, host: '127.0.0.1' });
   url = `http://127.0.0.1:${(app.server.address() as AddressInfo).port}`;
   close = async () => {
@@ -35,8 +35,8 @@ afterEach(async () => {
 const LEASE = 'lease-aaaaaaaa';
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function session(mode: 'live' | 'test' = 'test') {
-  const res = await hostCall<{ session: { id: string; code: string } }>(host, 'create', { label: 't', mode, config: { countdownMs: 0 } });
+async function session(mode: 'live' | 'test' = 'test', config: Record<string, unknown> = {}) {
+  const res = await hostCall<{ session: { id: string; code: string } }>(host, 'create', { label: 't', mode, config: { countdownMs: 0, ...config } });
   const open = await hostCall<{ view: PresenterView }>(host, 'pres.open', { sessionId: res.session.id, leaseId: LEASE });
   expect(open.ok).toBe(true);
   return { ...res.session, view: open.view };
@@ -73,8 +73,6 @@ async function until<T>(f: () => T | undefined | false, ms = 3000): Promise<T> {
 
 async function bots(id: string, n = 30, effect = 'expected') {
   await hostCall(host, 'bots.spawn', { sessionId: id, n });
-  await hostCall(host, 'bots.advance', { sessionId: id, to: 'rated_before' });
-  await hostCall(host, 'release', { sessionId: id });
   await hostCall(host, 'bots.advance', { sessionId: id, to: 'done', effect });
 }
 
@@ -98,8 +96,8 @@ describe('presenter state machine over the wire', () => {
     const s = await session();
     await bots(s.id);
     const scr = screen(s.code, s.view.screenKey);
-    await until(() => scr.last());
-    await until(() => scr.last().scene === 'hold');
+    const shown = await until(() => scr.last());
+    expect(shown.scene).toBe('lobby');
     const cur = (await hostCall<{ view: PresenterView }>(host, 'pres.open', { sessionId: s.id, leaseId: LEASE })).view;
     const b = await cmd(s.id, { t: 'begin', rev: cur.rev, confirm: 'BEGIN' });
     expect(b.ok).toBe(true);
@@ -144,25 +142,31 @@ describe('presenter state machine over the wire', () => {
 
 describe('snapshots', () => {
   it('late ratings do not change the frozen data; UPDATE is rejected', async () => {
-    const s = await session();
-    await hostCall(host, 'bots.spawn', { sessionId: s.id, n: 15 });
-    await hostCall(host, 'bots.advance', { sessionId: s.id, to: 'rated_before' });
+    const s = await session('test', { assist: false });
+    const p = new Player(url, s.code);
+    sockets.push(p);
+    await openPlay(host, s.id, LEASE);
+    await p.join();
+    await p.start();
+    await p.finish(0.8);
+    await p.rate('before', 40);
     await hostCall(host, 'release', { sessionId: s.id });
+    await p.waitFor((v) => v.me.stage === 'assigned');
     const b = await begin(s.id);
-    const before = (await hostCall<{ hash: string; data: RevealData }>(host, 'pres.data', { sessionId: s.id }));
+    const before = await hostCall<{ hash: string; data: RevealData }>(host, 'pres.data', { sessionId: s.id });
     expect(before.data.n.paired).toBe(0);
-    await hostCall(host, 'bots.advance', { sessionId: s.id, to: 'done' });
+    await p.rate('after', 60);
     const after = await hostCall<{ hash: string; data: RevealData }>(host, 'pres.data', { sessionId: s.id });
     expect(after.hash).toBe(before.hash);
     expect(after.data).toEqual(before.data);
     expect(() => db.run("UPDATE reveal_snapshots SET hash = 'x'")).toThrow(/immutable/);
     const r = (await cmd(s.id, { t: 'resnap', rev: b.rev, confirm: 'RESNAP' })).view;
-    expect(r.health?.n.paired).toBe(15);
+    expect(r.health?.n.paired).toBe(1);
     expect(db.all('SELECT id FROM reveal_snapshots')).toHaveLength(2);
   });
 
   it('derive agrees with the Part 1 host summary', async () => {
-    const s = await session();
+    const s = await session('test', { assist: false });
     await bots(s.id, 30);
     await begin(s.id);
     const d = (await hostCall<{ data: RevealData }>(host, 'pres.data', { sessionId: s.id })).data;

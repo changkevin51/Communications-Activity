@@ -96,6 +96,8 @@ export type PresenterView = ScreenState & {
   sessionId: string;
   code: string;
   phase: 'open' | 'released' | 'closed';
+  released: boolean;
+  assist: boolean;
   auto: boolean;
   screenKey: string;
   lease: { controller: string | null };
@@ -120,6 +122,7 @@ export type SnapshotCounts = {
   joined: number; started: number; scored: number; ratedBefore: number; assigned: number; done: number;
   flagged: number;
   excluded: { removed: number; invalid: number; noScore: number; stillPlaying: number };
+  assist?: { shaped: number; filled: number; assigned: number; added: number } | null;
 };
 
 export type SceneSpec = {
@@ -140,7 +143,7 @@ export const SCENES: readonly SceneSpec[] = [
   { id: 'samescore', beats: 4, needsSnapshot: true, optional: true, title: 'Same score' },
   { id: 'worlds', beats: 3, needsSnapshot: true, optional: false, title: 'Three worlds' },
   { id: 'movement', beats: 4, needsSnapshot: true, optional: false, title: 'Movement' },
-  { id: 'compare', beats: 3, needsSnapshot: true, optional: false, title: 'Compare' },
+  { id: 'compare', beats: 2, needsSnapshot: true, optional: false, title: 'Compare' },
   { id: 'mechanism', beats: 2, needsSnapshot: true, optional: false, title: 'Mechanism' },
   { id: 'concept', beats: 1, needsSnapshot: false, optional: true, title: 'Concept' },
   { id: 'bridge', beats: 1, needsSnapshot: true, optional: false, title: 'Bridge' },

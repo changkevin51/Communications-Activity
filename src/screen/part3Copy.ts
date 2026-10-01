@@ -14,6 +14,14 @@ export const HEADLINES: Partial<Record<Part3Scene, string>> = {
 
 export type Bar = { id: string; label: string; pct: number; n: number };
 
+export function feelWord(m: number): string {
+  if (m < 20) return 'BAD';
+  if (m < 40) return 'NOT GREAT';
+  if (m < 60) return 'OKAY';
+  if (m < 80) return 'GOOD';
+  return 'REALLY GOOD';
+}
+
 /** Choice bars, with suppressed cells merged into one "Other" bar. */
 export function bars(r: PromptResult): Bar[] {
   const spec = PROMPTS[r.prompt];
@@ -42,7 +50,8 @@ export function resultLines(r: PromptResult | null | undefined): string[] {
   if (r.counts) return bars(r).map((b) => (b.pct < 0 ? `OTHER (small groups combined)` : `${b.label}: ${b.pct}%`));
   return (r.sliders ?? []).map((s) => {
     const sl = spec.sliders?.find((x) => x.id === s.id);
-    return `${sl?.short ?? s.id}: middle answer ${fmt(s.median)} / 100`;
+    const median = Math.round(s.median);
+    return `${sl?.short ?? s.id}: most slid to “${feelWord(s.median)}” (${median}/100)`;
   });
 }
 

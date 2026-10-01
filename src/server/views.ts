@@ -4,7 +4,7 @@ import type { Sigil } from '../shared/identity/sigil';
 import type { Stage } from '../shared/flow';
 import { atOrPast } from '../shared/flow';
 import type { ParticipantRow, SessionRow } from './db/repo';
-import { attemptSeed, getAssignment, getAttempt, getParticipant, getRatings, getSession, sessionConfig } from './db/repo';
+import { attemptSeed, getAssignment, getAttempt, getParticipant, getRatings, getSession, playReleased, sessionConfig } from './db/repo';
 import type { Thresholds } from './assign/thresholds';
 import { getPresentation, snapshotData } from './services/presentation';
 import { phoneRoom } from './services/discussion';
@@ -24,7 +24,7 @@ export function buildView(db: Db, pid: string, now: number): ParticipantView | n
   const view: ParticipantView = {
     rev: p.rev,
     serverNow: now,
-    room: { code: s.code, open: s.phase !== 'closed', ...roomState(db, s, p) },
+    room: { code: s.code, open: s.phase !== 'closed', play: playReleased(db, s.id), ...roomState(db, s, p) },
     me: { codename: p.codename, sigil: JSON.parse(p.sigil_json) as Sigil, stage: p.removed_at ? 'removed' : stage },
   };
   if (p.removed_at) return view;

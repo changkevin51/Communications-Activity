@@ -123,7 +123,7 @@ function waitingViewers(db: Db, sessionId: string) {
 }
 
 export function release(db: Db, session: SessionRow, now: number): string[] {
-  if (session.phase !== 'open') return [];
+  if (session.released_at !== null) return [];
   const cfg = sessionConfig(session);
   const real = realPool(db, session.id);
   const th = computeThresholds(real.map((r) => r.score), cfg.peers);
@@ -136,7 +136,7 @@ export function release(db: Db, session: SessionRow, now: number): string[] {
   for (const a of out.assignments) counts[a.condition]++;
   const releaseJson = { thresholds: th, counts, viewers: viewers.length, pool: real.length, newGhosts: out.newGhosts.length };
   db.run(
-    "UPDATE sessions SET phase = 'released', released_at = ?, reveal_at = ?, release_json = ? WHERE id = ? AND phase = 'open'",
+    "UPDATE sessions SET phase = CASE WHEN phase = 'open' THEN 'released' ELSE phase END, released_at = ?, reveal_at = ?, release_json = ? WHERE id = ? AND released_at IS NULL",
     now,
     revealAt,
     JSON.stringify(releaseJson),
@@ -153,7 +153,7 @@ export function assignLate(db: Db, session: SessionRow, pid: string, now: number
   const score = db.get<{ score: number }>('SELECT score FROM attempts WHERE participant_id = ?', pid)?.score;
   if (score === undefined || score === null) return false;
   const cfg = sessionConfig(session);
-  const instant = session.phase === 'open' && cfg.assignMode === 'instant';
+  const instant = session.released_at === null && cfg.assignMode === 'instant';
   const frozen = session.release_json ? (JSON.parse(session.release_json) as { thresholds: Thresholds }).thresholds : null;
   const th = !instant && frozen ? frozen : computeThresholds(realPool(db, session.id).map((r) => r.score), cfg.peers);
   const prior = db.all<{ condition: Condition; viewerScore: number }>(

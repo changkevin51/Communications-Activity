@@ -32,7 +32,11 @@ The host console has a **Present** button on each session. It opens the presente
 3. In **Rehearsal**, pick a scenario (`expected`, `noisy`, `none`, `reversed`, `small`, `ties`, `imbalanced`, `lateheavy`), class size and seed, then **Run rehearsal**. The projector shows `REHEARSAL · SYNTHETIC DATA`; test sessions without a rehearsal show `TEST SESSION`. Rehearsal data is refused on live sessions.
 4. Walk the show with the keyboard or a clicker. **Hold to REWIND** clears the snapshot and returns to the lobby.
 
-`npm run sim -- --n 40 --reveal` also plays a bot class through BEGIN → end and prints a projector link.
+`npm run sim -- --n 40 --reveal` also plays a bot class through BEGIN → end and prints a projector link. Test-session bots wait in the lobby, then play, rate, view their assigned players and answer open questions on a realistic timeline; presenter actions catch them up immediately when needed.
+
+## Guaranteed results
+
+Every new live or test session enables **Guarantee results** by default. If class data does not meet the reveal or poll quality checks, the projector snapshot or frozen poll result is adjusted or padded; database ratings, responses and exports remain raw. Rehearsal data is never adjusted. The presenter console marks assisted sessions and reports when real data was kept or adjusted.
 
 ### Classroom checklist
 

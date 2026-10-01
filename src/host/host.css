@@ -43,7 +43,17 @@ label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color:
 .pres .label { font: 11px var(--mono, monospace); letter-spacing: .2em; opacity: .6; margin: 6px 0; }
 .pres .pad { display: flex; gap: 10px; margin: 10px 0; }
 .pres .pad .big { flex: 1; font-size: 22px; padding: 18px; }
-.pres .notes { margin: 0; padding-left: 18px; line-height: 1.45; max-height: 260px; overflow: auto; }
+.pres .notes { list-style: none; margin: 0; padding: 0; max-height: min(46vh, 440px); overflow: auto; display: flex; flex-direction: column; gap: 7px; }
+.pres .note { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 8px; align-items: baseline; font-size: 13px; line-height: 1.35; }
+.pres .note-plain { grid-template-columns: minmax(0, 1fr); }
+.pres .note-label { font: 10px ui-monospace, monospace; letter-spacing: .04em; color: var(--mute); }
+.pres .note-say .note-label { color: var(--paper); }
+.pres .note-ask .note-label, .pres .note-partner .note-label, .pres .note-follow-up .note-label { color: #ffb547; }
+.pres .note-caution .note-label, .pres .note-do-not-say .note-label { color: #ff4f1f; }
+.pres .note-if .note-label, .pres .note-live .note-label { color: #7cc8ff; }
+.pres .note-pause .note-body { font-style: italic; }
+.pres .note-pause .note-body, .pres .note-note .note-body, .pres .note-goal .note-body { color: var(--mute); }
+.pres .note-live .note-body { font-family: ui-monospace, monospace; font-size: 12px; }
 .pres .next-none { height: 202px; display: flex; align-items: center; justify-content: center; border: 1px dashed rgba(244,241,234,.2); }
 .pres .reveal-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
 .hold-btn { padding: 14px; font-weight: 700; letter-spacing: .1em; background-image: linear-gradient(#ff4f1f, #ff4f1f); background-repeat: no-repeat; background-size: 0 100%; }

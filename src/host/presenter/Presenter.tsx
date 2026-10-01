@@ -8,6 +8,34 @@ import { usePresenter, type Cmd } from './usePresenter';
 import { Rehearsal, ConceptEditor, HoldButton, QuestionPanel } from './Panels';
 import '../../screen/screen.css';
 
+const NOTE_LABELS = [
+  'DO NOT SAY', 'POINT OUT', 'IF EXPECTED', 'IF REVERSED', 'IF MIXED', 'IF WEAK', 'IF FLAT', 'IF THIN', 'IF OBVIOUS', 'IF NOT',
+  'FOLLOW-UP', 'TRANSITION', 'PARTNER', 'CAUTION', 'PAUSE', 'NOTE', 'GOAL', 'LIVE', 'SAY', 'ASK', 'WAIT',
+];
+
+function noteKind(label: string | undefined): string {
+  if (!label) return 'plain';
+  if (label.startsWith('IF ')) return 'if';
+  return label.toLowerCase().replace(/[^a-z]+/g, '-');
+}
+
+function NoteList({ notes }: { notes: string[] }) {
+  return (
+    <ul className="notes" data-testid="notes">
+      {notes.map((n, i) => {
+        const label = NOTE_LABELS.find((l) => n.startsWith(`${l}:`));
+        const body = label ? n.slice(label.length + 1).trim() : n;
+        return (
+          <li key={i} className={`note note-${noteKind(label)}`}>
+            {label ? <span className="note-label">{label}</span> : null}
+            <span className="note-body">{body}</span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 const SHORTCUTS: [string, string][] = [
   ['→ ↓ Space PgDn', 'Next beat'], ['← ↑ PgUp', 'Previous beat'], ['Shift+→ / Shift+←', 'Next / previous scene'],
   ['B or .', 'Hold (blackout)'], ['R', 'Replay beat'], ['F', 'Plain mode'], ['G', 'Focus scene strip'],
@@ -81,6 +109,7 @@ export function Presenter({ socket, sessionId, onExit }: { socket: Socket; sessi
         <button onClick={onExit}>← Sessions</button>
         <b className="mono">{view.code}</b>
         <span className={`tag ${view.mode}`}>{view.mode.toUpperCase()}</span>
+        {view.assist && <span className="tag">ASSIST</span>}
         {view.source === 'demo' && <span className="tag demo">REHEARSAL · {view.scenario}</span>}
         <span className="muted">{sceneSpec(view.scene).title} · beat {view.beat + 1}/{view.beats}{view.hold ? ' · HOLD' : ''}{view.plain ? ' · PLAIN' : ''}</span>
         <span className="grow" />
@@ -115,7 +144,7 @@ export function Presenter({ socket, sessionId, onExit }: { socket: Socket; sessi
           <div className="label">NEXT</div>
           {nextSt ? <Stage st={nextSt} data={data} still width={360} /> : <div className="muted next-none">{pre ? 'BEGIN REVEAL to continue' : 'End of show'}</div>}
           <div className="label">NOTES</div>
-          <ul className="notes" data-testid="notes">{view.notes.map((n, i) => <li key={i}>{n}</li>)}</ul>
+          <NoteList notes={view.notes} />
           <div className="reveal-actions">
             {pre ? (
               <HoldButton label="BEGIN REVEAL" testId="begin" disabled={!controlling} onConfirm={() => void send({ t: 'begin', confirm: 'BEGIN' })} />
@@ -147,6 +176,16 @@ export function Presenter({ socket, sessionId, onExit }: { socket: Socket; sessi
           <h3>Readiness</h3>
           <div className="mono">joined {r.joined} · started {r.started} · playing {r.playing} · rating {r.rating} · done {r.done}</div>
           <div className="mono muted">phones connected {r.phones} · phase {view.phase}</div>
+          {!view.released && (
+            <button
+              className="primary"
+              data-testid="release-phones"
+              disabled={!controlling}
+              onClick={() => confirm('Release waiting phones? They will see the three scores.') && void call(socket, 'release', { sessionId }).then((res) => { if (!res.ok) setToast(res.reason); })}
+            >
+              Release phones
+            </button>
+          )}
           {pre && view.phase !== 'closed' && <div className="warn">Close joins before BEGIN REVEAL.</div>}
         </div>
         <div className="panel" data-testid="health">
@@ -161,6 +200,13 @@ export function Presenter({ socket, sessionId, onExit }: { socket: Socket; sessi
                 excluded: removed {view.health.counts.excluded.removed} · invalid {view.health.counts.excluded.invalid} · no score {view.health.counts.excluded.noScore} · still playing {view.health.counts.excluded.stillPlaying}
               </div>
               {view.late ? <div className="muted">{view.late} finished after the snapshot (RESNAP to include).</div> : null}
+              {view.assist && view.source !== 'demo' && (
+                <div className="mono muted">
+                  {view.health.counts.assist
+                    ? `assist: adjusted ${view.health.counts.assist.shaped + view.health.counts.assist.filled} ratings · gave ${view.health.counts.assist.assigned} a room · added ${view.health.counts.assist.added} players`
+                    : 'assist: real data used as-is'}
+                </div>
+              )}
               {view.health.warnings.map((w) => <div key={w.code} className="warn">{w.text}</div>)}
             </>
           ) : <div className="muted">No snapshot yet. BEGIN REVEAL freezes the data.</div>}

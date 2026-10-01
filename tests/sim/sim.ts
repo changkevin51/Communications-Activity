@@ -1,12 +1,12 @@
 import { parseArgs } from 'node:util';
 import { performance } from 'node:perf_hooks';
-import { Player, hostCall, hostClient } from '../helpers/player';
+import { Player, hostCall, hostClient, openPlay } from '../helpers/player';
 import { rngFrom, normal, clamp } from '../../src/shared/rng';
 
 const { values } = parseArgs({
   options: {
     url: { type: 'string', default: 'http://localhost:3000' },
-    key: { type: 'string', default: process.env.ADMIN_KEY ?? 'dev-admin-key' },
+    key: { type: 'string', default: process.env.ADMIN_KEY ?? 'bob' },
     n: { type: 'string', default: '30' },
     late: { type: 'string', default: '0.15' },
     refresh: { type: 'string', default: '0.1' },
@@ -40,6 +40,8 @@ async function main() {
   const created = await hostCall<{ session: { id: string; code: string } }>(host, 'create', { label: `sim-${N}`, mode: 'test' });
   if (!created.ok) throw new Error(`create failed: ${created.reason}`);
   const { id, code } = created.session;
+  const opened = await openPlay(host, id);
+  if (!opened.ok) throw new Error(`open play failed: ${opened.reason}`);
   console.log(`session ${code} (${id}) with ${N} bots`);
 
   let released = false;

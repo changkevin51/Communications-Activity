@@ -7,6 +7,10 @@ export const CUE_MS = 400;
 export const TIMEOUT_MS = 5000;
 export const FEEDBACK_MS = 550;
 export const GAP_MS = 250;
+/** Extra memorize time on every scored round. */
+export const STUDY_BONUS_MS = 1200;
+/** Additional look time on the larger boards. */
+const LARGER_GRID_STUDY_MS: Record<number, number> = { 4: 800, 5: 1200 };
 
 type Row = [number, number, number, RoundSpec['change'], RoundSpec['zone'], number, number, number];
 
@@ -29,7 +33,7 @@ export const SPECS: readonly RoundSpec[] = ROWS.map(([grid, items, studyMs, chan
   idx: i,
   grid,
   items,
-  studyMs,
+  studyMs: studyMs + STUDY_BONUS_MS + (LARGER_GRID_STUDY_MS[grid] ?? 0),
   change,
   zone,
   weight,
@@ -43,7 +47,7 @@ export const PRACTICE_SPEC: RoundSpec = {
   idx: -1,
   grid: 3,
   items: 4,
-  studyMs: 2000,
+  studyMs: 2600,
   change: 'color',
   zone: 'edge',
   weight: 0,

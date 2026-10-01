@@ -5,7 +5,7 @@ import type { Hub } from '../hub';
 import { keyMatches } from '../auth';
 import { SessionConfigSchema } from '../config';
 import { getSession } from '../db/repo';
-import { release } from '../services/assignment';
+import { releaseSession } from '../services/autopilot';
 import { BotError, advanceBots, removeBots, spawnBots } from '../services/bots';
 import {
   closeSession,
@@ -80,10 +80,11 @@ export function registerHostNs(ns: Namespace, db: Db, hub: Hub, adminKey: string
     on('release', Sid, (req, now) => {
       const pids = db.tx(() => {
         const s = getSession(db, req.sessionId);
-        return s ? release(db, s, now) : [];
+        return s ? releaseSession(db, s, now) : [];
       });
       hub.pushViews(pids);
       hub.pushHost(req.sessionId);
+      hub.pushPresenter(req.sessionId);
       return { released: pids.length, view: view(req.sessionId) };
     });
     on('close', Sid, (req, now) => {
@@ -122,9 +123,10 @@ export function registerHostNs(ns: Namespace, db: Db, hub: Hub, adminKey: string
       return { spawned: ids.length };
     });
     on('bots.advance', Advance, (req, now) => {
-      const ids = advanceBots(db, req.sessionId, req.to, now, req.effect);
+      const { touched, refresh } = advanceBots(db, req.sessionId, req.to, now, req.effect);
+      hub.pushViews(refresh);
       hub.pushHost(req.sessionId);
-      return { advanced: ids.length };
+      return { advanced: touched.length };
     });
     on('bots.remove', Sid, (req) => {
       removeBots(db, req.sessionId);

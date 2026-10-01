@@ -1,6 +1,6 @@
 import type { Mark, RevealData, SceneId } from '../shared/reveal';
 import { WORLD_COLOR } from '../shared/revealCopy';
-import { LANES, SAFE, beeswarm, clampToSafe, jitter, laneX, markRadius, ratingY, scoreX, type Target } from './layout';
+import { LANES, SAFE, beeswarm, clampToSafe, jitter, laneX, markRadius, movementRatingY, ratingY, scoreX, type Target } from './layout';
 
 const PAPER = '#F4F1EA';
 const color = (m: Mark) => (m.world ? WORLD_COLOR[m.world] : PAPER);
@@ -36,14 +36,14 @@ function lanesCluster(d: RevealData, a: number): Target[] {
 
 function movement(d: RevealData, beat: number): Target[] {
   const r = Math.min(markRadius(d.marks.length), 8);
-  const y = ratingY(930, 390);
+  const y = movementRatingY(d);
   return d.marks.map((m) => {
     if (!m.world || m.r1 === null) return { k: m.k, x: 960, y: 1000, r, a: 0, color: PAPER };
-    const cx = laneX(m.world) + jitter(m.k, 300);
+    const x = laneX(m.world) + jitter(m.k, 420);
     const y1 = y(m.r1);
-    if (beat === 0 || m.r2 === null) return clampToSafe({ k: m.k, x: cx, y: y1, r, a: beat === 0 ? 0.9 : 0.25, color: color(m) });
-    const t = clampToSafe({ k: m.k, x: cx, y: y(m.r2), r, a: beat === 3 ? 0.25 : 0.9, color: color(m) });
-    return { ...t, trail: { x: cx, y: y1 } };
+    if (beat === 0 || m.r2 === null) return clampToSafe({ k: m.k, x, y: y1, r, a: beat === 0 ? 0.9 : 0.25, color: color(m) });
+    const t = clampToSafe({ k: m.k, x, y: y(m.r2), r, a: beat === 3 ? 0.25 : 0.9, color: color(m) });
+    return { ...t, trail: { x: t.x, y: y1 } };
   });
 }
 

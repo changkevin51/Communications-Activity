@@ -29,6 +29,14 @@ describe('layout', () => {
   });
 });
 
+describe('end slide', () => {
+  it('puts both jokes under the anonymity line', () => {
+    const base = { scene: 'end' as const, beat: 0, live: undefined, concept: undefined, q: undefined, hide: undefined, slot: null };
+    expect(plainFrame({ ...base, late: 0 }, null).lines).toEqual(['All data stays anonymous.', 'Just kidding.', '(Just kidding.)']);
+    expect(plainFrame({ ...base, late: 3 }, null).lines[3]).toBe('+3 finished after we froze the data.');
+  });
+});
+
 describe('frames', () => {
   it('every scenario × scene × beat yields finite targets and clean copy', () => {
     for (const sc of SCENARIOS) {

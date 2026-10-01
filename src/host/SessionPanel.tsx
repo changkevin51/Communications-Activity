@@ -56,7 +56,7 @@ export function SessionPanel({ socket, sessionId, adminKey, onDeleted, onChanged
     <div>
       <div className="panel">
         <div className="row" style={{ justifyContent: 'space-between' }}>
-          <h2 className="mono">{s.code} <span className="muted">{s.label} · {s.mode} · {s.phase}</span></h2>
+          <h2 className="mono">{s.code} <span className="muted">{s.label} · {s.mode} · {s.phase}{s.config.assist !== false ? ' · assist' : ''}</span></h2>
           <button onClick={() => setShowQr(true)}>Show QR</button>
           <button className="primary" data-testid="present" onClick={() => (location.hash = `present=${sessionId}`)}>Present</button>
         </div>
@@ -74,13 +74,13 @@ export function SessionPanel({ socket, sessionId, adminKey, onDeleted, onChanged
       </div>
       <div className="panel">
         <h3>Release</h3>
-        {s.phase === 'open' ? (
+        {s.releasedAt === null ? (
           <div className="row">
             <span>{view.waiting} of {view.finished} finished players are waiting ({view.total} joined).</span>
             <button className="primary" onClick={() => confirm(`Release ${view.waiting} waiting players?`) && void act('release')}>Release</button>
           </div>
         ) : (
-          <div className="muted">{s.phase === 'released' ? 'Released. Late finishers are assigned automatically.' : 'Room closed.'}</div>
+          <div className="muted">{s.phase === 'released' ? 'Released. Late finishers are assigned automatically.' : 'Room closed; released players stay assigned.'}</div>
         )}
         <div className="row" style={{ marginTop: 10 }}>
           {s.phase === 'closed' ? <button onClick={() => void act('reopen')}>Reopen</button> : <button onClick={() => void act('close')}>Close room</button>}
@@ -99,10 +99,10 @@ export function SessionPanel({ socket, sessionId, adminKey, onDeleted, onChanged
             <label>mean<input type="number" value={bots.mean} onChange={(e) => setBots({ ...bots, mean: Number(e.target.value) })} /></label>
             <label>sd<input type="number" value={bots.sd} onChange={(e) => setBots({ ...bots, sd: Number(e.target.value) })} /></label>
             <button onClick={() => void act('bots.spawn', bots)}>Spawn bots</button>
-            <button onClick={() => void act('bots.advance', { to: 'rated_before' })}>Bots → rated #1</button>
-            <button onClick={() => void act('bots.advance', { to: 'done' })}>Bots → done</button>
+            <button onClick={() => void act('bots.advance', { to: 'done' })}>Finish bots now</button>
             <button onClick={() => void act('bots.remove')}>Remove bots</button>
           </div>
+          <div className="muted">Bots wait in the lobby, play when you press Next on Present, rate, see their three players after Stand by, and answer every question.</div>
         </div>
       )}
       <div className="panel">

@@ -105,9 +105,10 @@ export class Hub {
       sessionId,
       setTimeout(() => {
         this.hostTimers.delete(sessionId);
+        const followed = autoFollow(this.db, sessionId, Date.now());
+        if (followed.refresh.length) this.pushViews(followed.refresh);
         const v = hostView(this.db, sessionId, this.connectedSet());
         if (v) this.hostNs?.to(`h:${sessionId}`).emit('hostView', v);
-        autoFollow(this.db, sessionId, Date.now());
         this.pushPresentation(sessionId);
       }, this.hostDebounceMs),
     );

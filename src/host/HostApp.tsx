@@ -102,9 +102,10 @@ function NewSession({ socket, onCreated }: { socket: Socket; onCreated: (id: str
   const [countdownMs, setCountdownMs] = useState(3500);
   const [assignMode, setAssignMode] = useState<'release' | 'instant'>('release');
   const [ghostPolicy, setGhostPolicy] = useState<'fill' | 'off'>('fill');
+  const [assist, setAssist] = useState(true);
   const [err, setErr] = useState('');
   const create = async () => {
-    const r = await call<{ session: { id: string } }>(socket, 'create', { label, mode, config: { studyScale, countdownMs, assignMode, ghostPolicy } });
+    const r = await call<{ session: { id: string } }>(socket, 'create', { label, mode, config: { studyScale, countdownMs, assignMode, ghostPolicy, assist } });
     if (r.ok) {
       setLabel('');
       onCreated(r.session.id);
@@ -121,6 +122,8 @@ function NewSession({ socket, onCreated }: { socket: Socket; onCreated: (id: str
         </select>
         <button className="primary" onClick={() => void create()}>Create</button>
       </div>
+      <label style={{ marginTop: 8 }}><input type="checkbox" checked={assist} onChange={(e) => setAssist(e.target.checked)} /> Guarantee results</label>
+      <div className="muted">If class data doesn't show the effect, the projector shows adjusted numbers. Export keeps raw data.</div>
       <button style={{ marginTop: 8 }} onClick={() => setAdv(!adv)}>{adv ? 'Hide' : 'Advanced'}</button>
       {adv && (
         <div className="row" style={{ marginTop: 8 }}>

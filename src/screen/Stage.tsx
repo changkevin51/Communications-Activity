@@ -29,12 +29,20 @@ export function captionFor(st: StageState, d: RevealData | null): string | null 
     case 'movement':
       return d.n.paired < 3 ? `${d.n.paired} people rated twice.` : b === 0 ? 'Rating 0–100, before seeing anyone.' : null;
     case 'compare':
-      return b === 0 ? 'Average change in self-rating, points out of 100.' : b === 1 ? compareCopy(d).support : `One class, ${d.n.paired} people. A real study would repeat this many times.`;
+      return b === 0 ? 'Average change in self-rating, points out of 100.' : compareCopy(d).support;
     case 'mechanism':
       return b >= 1 ? mechanismLine(d) : null;
     default:
       return null;
   }
+}
+
+function endLineClass(scene: string, lines: string[], i: number): string {
+  if (scene !== 'end') return 'lines';
+  if (lines[i] === 'All data stays anonymous.') return 'lines end-anon';
+  if (!lines[i].includes('Just kidding.')) return 'lines';
+  const n = lines.slice(0, i).filter((x) => x.includes('Just kidding.')).length;
+  return `lines end-joke end-joke-${n}`;
 }
 
 function useQr(text: string | null) {
@@ -116,7 +124,7 @@ function Frame({ st, d, origin, still }: { st: StageState; d: RevealData | null;
       <div className="head">
         {pf.kicker && <div className="kicker">{pf.kicker}</div>}
         <div className={textOnly ? 'h-big' : 'h-mid'} data-testid="headline">{pf.headline}</div>
-        {textOnly && pf.lines.map((l, i) => <div key={i} className="lines">{l}</div>)}
+        {textOnly && pf.lines.map((l, i) => <div key={i} className={endLineClass(st.scene, pf.lines, i)}>{l}</div>)}
         {!textOnly && captionFor(st, d) && <div className="caption">{captionFor(st, d)}</div>}
       </div>
       {note && <div className="footnote mono">{note}</div>}

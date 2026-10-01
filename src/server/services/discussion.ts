@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { Db } from '../db/db';
-import { getParticipant, getSession, logEvent, newId, type ParticipantRow, type SessionRow } from '../db/repo';
+import { assistOn, getParticipant, getSession, logEvent, newId, type ParticipantRow, type SessionRow } from '../db/repo';
 import {
   LATE_GRACE_MS, PROMPT_OF, isPart3, roleAt,
   type AnswerValue, type PresenterQuestion, type Profile, type PromptId, type PromptResult, type ScreenQuestion,
@@ -9,7 +9,9 @@ import { PROMPTS, type PromptSpec } from '../../shared/discussionContent';
 import type { AnswerReqT, PhonePrompt, RoomScreen } from '../../shared/protocol';
 import type { SceneId, Source } from '../../shared/reveal';
 import { aggregate, assertPublicPrompt, validAnswer } from '../discussion/aggregate';
-import { demoAnswers } from '../discussion/demo';
+import { assistAnswers } from '../discussion/assist';
+import { demoAnswer, demoAnswers } from '../discussion/demo';
+import { rngFrom } from '../../shared/rng';
 import type { CmdResult } from './participant';
 
 export type DemoCfg = { profile: Profile; n: number; seed: string };
@@ -53,26 +55,34 @@ export function openRun(db: Db, q: QCtx, prompt: PromptId, now: number): number 
   const run = (latestRun(db, q.s.id, prompt)?.run ?? 0) + 1;
   const source: Source = q.source === 'demo' ? 'demo' : q.s.mode;
   db.run('INSERT INTO prompt_runs (session_id, prompt, run, phase, source, opened_at) VALUES (?, ?, ?, ?, ?, ?)', q.s.id, prompt, run, 'open', source, now);
-  if (source === 'test') answerForBots(db, q.s, prompt, run, now);
   logEvent(db, q.s.id, null, 'prompt_open', { prompt, run });
   return run;
 }
 
-function answerForBots(db: Db, s: SessionRow, prompt: PromptId, run: number, now: number) {
+export function answerBots(db: Db, s: SessionRow, prompt: PromptId, run: number, now: number, due?: (id: string) => boolean): string[] {
   const spec = PROMPTS[prompt];
   const bots = db.all<{ id: string }>(
-    `SELECT id FROM participants WHERE session_id = ? AND kind = 'bot' AND removed_at IS NULL AND stage IN ${stagesFor(spec)} ORDER BY id`,
-    s.id,
-  );
-  const { values } = demoAnswers(prompt, 'expected', bots.length, `${s.seed}:bots:${run}`);
-  values.forEach((v, i) =>
-    db.run('INSERT INTO responses (session_id, prompt, run, participant_id, rid, value_json, at) VALUES (?, ?, ?, ?, ?, ?, ?)', s.id, prompt, run, bots[i].id, `bot-${bots[i].id.slice(0, 12)}`, JSON.stringify(v), now),
-  );
+    `SELECT p.id FROM participants p WHERE p.session_id = ? AND p.kind = 'bot' AND p.removed_at IS NULL AND p.stage IN ${stagesFor(spec)}
+       AND NOT EXISTS (SELECT 1 FROM responses r WHERE r.session_id = ? AND r.prompt = ? AND r.run = ? AND r.participant_id = p.id)
+     ORDER BY p.id`,
+    s.id, s.id, prompt, run,
+  ).filter(({ id }) => !due || due(id));
+  for (const bot of bots) {
+    const value = demoAnswer(rngFrom(`${s.seed}:pilot:${bot.id}:answer:${prompt}:${run}`), prompt, 'expected');
+    db.run('INSERT INTO responses (session_id, prompt, run, participant_id, rid, value_json, at) VALUES (?, ?, ?, ?, ?, ?, ?)', s.id, prompt, run, bot.id, `bot-${bot.id.slice(0, 12)}`, JSON.stringify(value), now);
+  }
+  return bots.map((b) => b.id);
 }
 
 export function freezeRun(db: Db, q: QCtx, r: RunRow, now: number) {
   if (r.phase !== 'open') return;
-  const { values, eligible } = valuesFor(db, q, r);
+  if (r.source === 'test') answerBots(db, q.s, r.prompt, r.run, now);
+  let { values, eligible } = valuesFor(db, q, r);
+  if (r.source !== 'demo' && assistOn(q.s)) {
+    const assisted = assistAnswers(r.prompt, values, eligible, `${q.s.seed}:poll:${r.prompt}:${r.run}`);
+    values = assisted.values;
+    if (assisted.mode !== 'real') logEvent(db, q.s.id, null, 'assist', { prompt: r.prompt, run: r.run, mode: assisted.mode, added: assisted.added });
+  }
   const data = assertPublicPrompt(aggregate(r.prompt, r.run, r.source, values, eligible));
   const json = JSON.stringify(data);
   const id = newId();
@@ -176,7 +186,7 @@ export function phoneRoom(db: Db, s: SessionRow, p: ParticipantRow, row: PhoneRo
   if (!r || r.phase !== 'open' || !isEligible(s, p, spec)) return { screen };
   const answered = !!db.get('SELECT 1 AS x FROM responses WHERE session_id = ? AND prompt = ? AND run = ? AND participant_id = ?', s.id, promptId, r.run, p.id);
   const prompt: PhonePrompt = {
-    id: spec.id, run: r.run, kind: spec.kind, title: spec.title, skipLabel: spec.skipLabel, submitLabel: spec.submitLabel, answered,
+    id: spec.id, run: r.run, kind: spec.kind, title: spec.title, submitLabel: spec.submitLabel, answered,
     ...(spec.body ? { body: spec.body } : {}),
     ...(spec.choices ? { choices: spec.choices.map((c) => ({ id: c.id, label: c.label })) } : {}),
     ...(spec.exclusive ? { exclusive: spec.exclusive } : {}),

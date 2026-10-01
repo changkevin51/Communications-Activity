@@ -11,13 +11,15 @@ import { exportCsv, exportJson } from './services/exporter';
 import { registerParticipantNs } from './sockets/participant';
 import { registerHostNs } from './sockets/host';
 import { registerScreenNs } from './sockets/screen';
+import { pilotTick } from './services/autopilot';
 
-export type AppOptions = { db: Db; adminKey: string; clientDir?: string; logger?: boolean; hostDebounceMs?: number };
+export type AppOptions = { db: Db; adminKey: string; clientDir?: string; logger?: boolean; hostDebounceMs?: number; botTickMs?: number };
 
 export async function createApp(opts: AppOptions) {
   const { db, adminKey } = opts;
   const app = Fastify({ logger: opts.logger ?? false, logController: new LogController({ disableRequestLogging: true }), trustProxy: true, bodyLimit: 32 * 1024 });
   const hub = new Hub(db, opts.hostDebounceMs);
+  const botTimer = opts.botTickMs === 0 ? null : setInterval(() => pilotTick(db, hub, Date.now()), opts.botTickMs ?? 1000).unref();
 
   app.addHook('onSend', async (_req, reply) => {
     reply.header('X-Content-Type-Options', 'nosniff');
@@ -71,6 +73,7 @@ export async function createApp(opts: AppOptions) {
   registerScreenNs(hub.screenNs, db, hub);
 
   app.addHook('onClose', async () => {
+    if (botTimer) clearInterval(botTimer);
     hub.close();
     await io.close();
   });

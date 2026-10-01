@@ -8,6 +8,7 @@ export const SessionConfigSchema = z.object({
   countdownMs: z.number().int().min(0).max(15000).default(3500),
   ghostPolicy: z.enum(['fill', 'off']).default('fill'),
   assignMode: z.enum(['release', 'instant']).default('release'),
+  assist: z.boolean().default(true),
 });
 
 export type SessionConfig = z.infer<typeof SessionConfigSchema>;
@@ -18,7 +19,7 @@ export const env = {
   port: Number(process.env.PORT ?? 3000),
   host: process.env.HOST ?? '0.0.0.0',
   dbPath: process.env.DB_PATH ?? '.data/dev.db',
-  adminKey: process.env.ADMIN_KEY ?? (process.env.APP_ENV === 'production' ? '' : 'dev-admin-key'),
+  adminKey: process.env.ADMIN_KEY ?? (process.env.APP_ENV === 'production' ? '' : 'bob'),
   appEnv: process.env.APP_ENV ?? 'development',
   clientDir: process.env.CLIENT_DIR ?? 'dist/client',
 };

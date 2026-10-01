@@ -1,19 +1,21 @@
 import { createHash, randomBytes } from 'node:crypto';
 import type { Db } from '../db/db';
-import { getSession, newId, type SessionRow } from '../db/repo';
+import { assistOn, getSession, newId, type SessionRow } from '../db/repo';
 import {
   EMPTY_CONCEPT, SCENES, beatsFor, isPreReveal, nextPos, prevPos, sceneSpec, skipReason,
   type Concept, type LiveCounts, type Motion, type NavCtx, type Pos, type PresenterView, type RevealData,
   type SceneId, type ScreenState, type SnapshotCounts, type SnapshotRow, type Source, type WorldKey,
 } from '../../shared/reveal';
 import { eligibility, type RawRow } from '../reveal/eligibility';
+import { assistRows } from '../reveal/assist';
 import { derive } from '../reveal/derive';
 import { assertPublic } from '../reveal/public';
 import { demoRows, type Scenario } from '../reveal/demo';
-import { notesFor } from '../reveal/registry';
+import { notesFor } from '../reveal/notes';
 import { DEFAULT_FLAGS, PROMPT_OF, askBeat, isPart3, roleAt, type Part3Flags, type Profile, type PromptId } from '../../shared/discussion';
 import { slotQuote } from '../../shared/reveal';
 import { clearPrompts, freezeOpen, latestRun, openRun, presenterQuestion, screenQuestion, syncQuestion, type DemoCfg, type QCtx } from './discussion';
+import { fastForwardBots, releaseSession } from './autopilot';
 
 export type PresRow = {
   session_id: string; scene: SceneId; beat: number; rev: number; nonce: number; hold: number; plain: number;
@@ -45,7 +47,7 @@ export type Cmd =
   | { t: 'take' };
 
 export type Reason = 'STALE' | 'NOT_CONTROLLER' | 'GUARD' | 'NO_SNAPSHOT' | 'LIVE_SESSION' | 'NO_SESSION' | 'NO_QUESTION' | 'PART3_STARTED';
-export type CmdResult = { ok: true; changed: boolean; lookChanged: boolean } | { ok: false; reason: Reason };
+export type CmdResult = { ok: true; changed: boolean; lookChanged: boolean; refresh?: string[] } | { ok: false; reason: Reason };
 
 export const newScreenKey = () => randomBytes(24).toString('base64url');
 
@@ -113,7 +115,8 @@ export function phoneSig(db: Db, sessionId: string): string {
     const r = latestRun(db, sessionId, p);
     ask = r ? `${p}:${r.run}:${r.phase}` : p;
   }
-  return [row.snapshot_id, row.part3_at ? 1 : 0, row.phones, row.scene === 'end' ? 1 : 0, ask].join('|');
+  const play = row.scene === 'lobby' ? 0 : 1;
+  return [row.snapshot_id, row.part3_at ? 1 : 0, row.phones, row.scene === 'end' ? 1 : 0, play, ask].join('|');
 }
 
 export function loadRaw(db: Db, sessionId: string): RawRow[] {
@@ -153,7 +156,9 @@ function insertSnapshot(db: Db, s: SessionRow, source: Source, scenario: string 
 
 export function freeze(db: Db, s: SessionRow, now: number): string {
   const e = eligibility(loadRaw(db, s.id), s.mode, s.seed);
-  return insertSnapshot(db, s, s.mode, null, null, e.rows, e.counts, e.stillFinishing, now);
+  const assisted = assistOn(s) ? assistRows(e.rows, s.seed) : { rows: e.rows, info: null };
+  const counts: SnapshotCounts = { ...e.counts, assist: assisted.info };
+  return insertSnapshot(db, s, s.mode, null, null, assisted.rows, counts, e.stillFinishing, now);
 }
 
 export function freezeDemo(db: Db, s: SessionRow, scenario: Scenario, n: number, seed: string, now: number): string {
@@ -222,6 +227,12 @@ export function command(db: Db, sessionId: string, leaseId: string, cmd: Cmd, no
       if (moved && patch.snapshot_id === undefined) syncQuestion(db, qctx(db, s, { ...row, ...patch }), pos, to, now);
       return { ok: true, changed: true, lookChanged: phoneSig(db, sessionId) !== sig };
     };
+    /** Arriving at stand-by is the cue to send waiting phones their three scores. */
+    const arrive = (to: Pos, result: CmdResult): CmdResult => {
+      if (!result.ok || to.scene !== 'hold' || row.scene === 'hold') return result;
+      const refresh = releaseSession(db, s, now);
+      return refresh.length ? { ...result, refresh } : result;
+    };
     const reset: Patch = { phones: 'auto', hide: 0, focus: null, part3_at: null };
     const prompt = PROMPT_OF[row.scene as keyof typeof PROMPT_OF] as PromptId | undefined;
     switch (cmd.t) {
@@ -233,7 +244,7 @@ export function command(db: Db, sessionId: string, leaseId: string, cmd: Cmd, no
           return { ok: true, changed: false, lookChanged: false };
         }
         logSkips(db, row, pos, to, ctx, now);
-        return done({ scene: to.scene, beat: to.beat, hold: 0 }, cmd.t);
+        return arrive(to, done({ scene: to.scene, beat: to.beat, hold: 0 }, cmd.t));
       }
       case 'goto': {
         const spec = sceneSpec(cmd.scene);
@@ -241,15 +252,20 @@ export function command(db: Db, sessionId: string, leaseId: string, cmd: Cmd, no
         if (isPreReveal(cmd.scene) !== isPreReveal(row.scene)) return { ok: false, reason: isPreReveal(row.scene) ? 'NO_SNAPSHOT' : 'GUARD' };
         if (skipReason(cmd.scene, ctx)) return { ok: false, reason: 'GUARD' };
         const beat = Math.max(0, Math.min(beatsFor(cmd.scene, ctx) - 1, cmd.beat ?? 0));
-        return done({ scene: cmd.scene, beat, hold: 0 }, 'goto');
+        return arrive({ scene: cmd.scene, beat }, done({ scene: cmd.scene, beat, hold: 0 }, 'goto'));
       }
       case 'begin': {
         if (!isPreReveal(row.scene)) return { ok: true, changed: false, lookChanged: false };
-        return done({ scene: 'onegame', beat: 0, hold: 0, snapshot_id: freeze(db, s, now) }, 'begin');
+        const fast = s.mode === 'test' ? fastForwardBots(db, s, 'done', now) : null;
+        const result = done({ scene: 'onegame', beat: 0, hold: 0, snapshot_id: freeze(db, s, now) }, 'begin');
+        return result.ok && fast?.refresh.length ? { ...result, refresh: fast.refresh } : result;
       }
-      case 'resnap':
+      case 'resnap': {
         if (row.part3_at !== null) return { ok: false, reason: 'PART3_STARTED' };
-        return done({ scene: 'onegame', beat: 0, hold: 0, snapshot_id: freeze(db, s, now) }, 'resnap');
+        const fast = s.mode === 'test' ? fastForwardBots(db, s, 'done', now) : null;
+        const result = done({ scene: 'onegame', beat: 0, hold: 0, snapshot_id: freeze(db, s, now) }, 'resnap');
+        return result.ok && fast?.refresh.length ? { ...result, refresh: fast.refresh } : result;
+      }
       case 'demo': {
         if (s.mode !== 'test') return { ok: false, reason: 'LIVE_SESSION' };
         clearPrompts(db, sessionId);
@@ -331,16 +347,16 @@ export function liveCounts(db: Db, s: SessionRow): LiveCounts {
 
 export const AUTO_QUIET_MS = 10_000;
 
-export function autoFollow(db: Db, sessionId: string, now: number): boolean {
+export function autoFollow(db: Db, sessionId: string, now: number): { changed: boolean; refresh: string[] } {
   return db.tx(() => {
     const row = getPresentation(db, sessionId);
     const s = getSession(db, sessionId);
-    if (!row || !s || !row.auto || !isPreReveal(row.scene) || now - row.cmd_at < AUTO_QUIET_MS) return false;
+    if (!row || !s || !row.auto || row.scene === 'lobby' || !isPreReveal(row.scene) || now - row.cmd_at < AUTO_QUIET_MS) return { changed: false, refresh: [] };
     const c = liveCounts(db, s);
-    const want: SceneId = c.started < 1 ? 'lobby' : c.done >= 0.9 * c.started ? 'hold' : 'playing';
-    if (want === row.scene) return false;
+    const want: SceneId = c.started >= 1 && c.done >= 0.9 * c.started ? 'hold' : 'playing';
+    if (want === row.scene) return { changed: false, refresh: [] };
     apply(db, row, { scene: want, beat: 0 }, 'auto-follow', now);
-    return true;
+    return { changed: true, refresh: want === 'hold' ? releaseSession(db, s, now) : [] };
   });
 }
 
@@ -392,22 +408,30 @@ export function presenterView(db: Db, sessionId: string, now: number, conn: { ph
   const c = liveCounts(db, s);
   const worlds = (d: RevealData) =>
     Object.fromEntries((['up', 'neutral', 'down'] as WorldKey[]).map((w) => [w, { n: d.worlds[w].n, nPaired: d.worlds[w].nPaired }])) as Record<WorldKey, { n: number; nPaired: number }>;
+  const counts = snap ? (JSON.parse(snap.snap.counts_json) as SnapshotCounts) : null;
+  const question = presenterQuestion(db, qctx(db, s, row), row.scene, row.beat);
   return {
     ...st,
     sessionId: s.id,
     code: s.code,
     phase: s.phase,
+    released: s.released_at !== null,
+    assist: assistOn(s),
     auto: !!row.auto,
     screenKey: row.screen_key,
     lease: { controller: row.controller },
     readiness: { joined: c.joined, started: c.started, playing: c.playing, rating: c.rating, done: c.done, ...conn },
-    health: snap
-      ? { counts: JSON.parse(snap.snap.counts_json) as SnapshotCounts, n: snap.data.n, worlds: worlds(snap.data), pattern: snap.data.pattern, warnings: snap.data.warnings }
+    health: snap && counts
+      ? { counts, n: snap.data.n, worlds: worlds(snap.data), pattern: snap.data.pattern, warnings: snap.data.warnings }
       : null,
     strip: SCENES.map((x) => ({ scene: x.id, beats: beatsFor(x.id, ctx), skip: skipReason(x.id, ctx) })),
     conceptConfig: ctx.concept,
-    notes: notesFor(row.scene, row.beat, snap?.data ?? null),
-    question: presenterQuestion(db, qctx(db, s, row), row.scene, row.beat),
+    notes: notesFor(row.scene, row.beat, snap?.data ?? null, {
+      assist: counts?.assist ?? null,
+      slotText: isPart3(row.scene) ? slotQuote(ctx.concept, row.scene)?.text ?? null : null,
+      questionSplit: question?.split ?? null,
+    }),
+    question,
     flags: { landscape: flagsOf(row).landscape },
     phones: row.phones,
     part3At: row.part3_at,

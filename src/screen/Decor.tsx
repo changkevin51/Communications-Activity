@@ -1,7 +1,7 @@
 import type { RevealData, SceneId, WorldKey } from '../shared/reveal';
 import { WORLDS } from '../shared/reveal';
 import { WORLD_ACADEMIC, WORLD_COLOR, WORLD_GLYPH, WORLD_PLAIN, fmt } from '../shared/revealCopy';
-import { H, LANES, SAFE, W, laneX, ratingY, scale, scoreX } from './layout';
+import { H, LANES, SAFE, W, laneX, movementRatingY, ratingY, scale, scoreX } from './layout';
 
 const PAPER = '#F4F1EA';
 const MUTE = '#8F93A3';
@@ -94,7 +94,7 @@ function Compare({ d, beat }: { d: RevealData; beat: number }) {
 }
 
 function Slopes({ d }: { d: RevealData }) {
-  const y = ratingY(930, 390);
+  const y = movementRatingY(d);
   return (
     <g>
       {WORLDS.map((w) => {
