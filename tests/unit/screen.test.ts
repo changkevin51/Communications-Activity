@@ -32,8 +32,7 @@ describe('layout', () => {
 describe('end slide', () => {
   it('puts both jokes under the anonymity line', () => {
     const base = { scene: 'end' as const, beat: 0, live: undefined, concept: undefined, q: undefined, hide: undefined, slot: null };
-    expect(plainFrame({ ...base, late: 0 }, null).lines).toEqual(['All data stays anonymous.', 'Just kidding.', '(Just kidding.)']);
-    expect(plainFrame({ ...base, late: 3 }, null).lines[3]).toBe('+3 finished after we froze the data.');
+    expect(plainFrame(base, null).lines).toEqual(['All data stays anonymous.', 'Just kidding.', '(Just kidding.)']);
   });
 });
 
@@ -47,7 +46,7 @@ describe('frames', () => {
           for (let beat = 0; beat < s.beats; beat++) {
             const ts = targetsFor(s.id, beat, d);
             for (const t of ts) for (const v of [t.x, t.y, t.r, t.a]) expect(Number.isFinite(v)).toBe(true);
-            const st = { scene: s.id, beat, nonce: 0, hold: false, plain: false, motion: 'full' as const, source: 'demo' as const, mode: 'test' as const, late: 0,
+            const st = { scene: s.id, beat, nonce: 0, hold: false, plain: false, motion: 'full' as const, source: 'demo' as const, mode: 'test' as const,
               live: { code: 'ABCD', joined: n, started: n, playing: 0, rating: 0, done: n }, concept: { title: '', quotes: [] } };
             const f = plainFrame(st, d);
             expect(f.headline.trim().length, `${sc}/${n}/${s.id}/${beat}`).toBeGreaterThan(0);

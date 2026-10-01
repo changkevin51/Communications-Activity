@@ -6,7 +6,7 @@ import { WORLD_ACADEMIC, WORLD_PLAIN, compareCopy, fmt, mechanismLine, onegameCa
 
 export type PlainFrame = { kicker: string; headline: string; lines: string[] };
 
-export function plainFrame(st: Pick<ScreenState, 'scene' | 'beat' | 'live' | 'concept' | 'late' | 'q' | 'hide' | 'slot'>, d: RevealData | null): PlainFrame {
+export function plainFrame(st: Pick<ScreenState, 'scene' | 'beat' | 'live' | 'concept' | 'q' | 'hide' | 'slot'>, d: RevealData | null): PlainFrame {
   const s: SceneId = st.scene;
   const b = st.beat;
   const live = st.live;
@@ -23,7 +23,7 @@ export function plainFrame(st: Pick<ScreenState, 'scene' | 'beat' | 'live' | 'co
       return { kicker: st.concept?.title || 'CONCEPT', headline: q ? `“${q.text}”` : 'THE CONCEPT', lines: q ? [`${q.source}${q.page ? `, p. ${q.page}` : ''}`] : [] };
     }
     case 'end':
-      return { kicker: 'SIGNAL SHIFT', headline: 'THANK YOU.', lines: ['All data stays anonymous.', 'Just kidding.', '(Just kidding.)', ...(st.late ? [`+${st.late} finished after we froze the data.`] : [])] };
+      return { kicker: 'SIGNAL SHIFT', headline: 'THANK YOU.', lines: ['All data stays anonymous.', 'Just kidding.', '(Just kidding.)'] };
   }
   if (!d) return { kicker: 'SIGNAL SHIFT', headline: 'ONE MOMENT', lines: ['Loading the class data…'] };
   const w = d.worlds;

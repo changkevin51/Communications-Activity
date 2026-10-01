@@ -124,17 +124,6 @@ function sameScoreOpen(d: RevealData | null): string[] {
   ];
 }
 
-function mechanismDisclosure(d: RevealData | null): string[] {
-  if (!d) return ['NOTE: Read the disclosure line on the next beat exactly. Don\'t upgrade filled-in scores into real classmates.'];
-  const m = d.mechanism;
-  if (m.peersShown === 0) return ['SAY: Read the line on screen. Everyone was shown three other players.'];
-  if (m.generatedShown === 0) return ['SAY: Those were real anonymous scores from people in this room.'];
-  return [
-    `LIVE: ${m.realShown} of ${m.peersShown} scores on those screens were real classmates. ${m.generatedShown} were filled in when there weren't enough real ones nearby.`,
-    'SAY: Read the line on the screen. Do not imply every score was a real classmate.',
-  ];
-}
-
 function worldsCaution(d: RevealData | null): string[] {
   if (!d) return [];
   const ms = (['up', 'neutral', 'down'] as const).map((w) => d.worlds[w].meanScore).filter((x): x is number => x !== null);
@@ -359,7 +348,7 @@ function script(scene: SceneId, beat: number, data: RevealData | null, extra?: N
         ];
       }
       return [
-        ...mechanismDisclosure(data),
+        'SAY: Everyone was shown three other players.',
         'ASK: Why did seeing only a few selected classmates matter at all, when your actual performance had not changed?',
         'PAUSE: Let that question hang. Don\'t answer it yet.',
         'NOTE: The reference-group line is "others against whom we evaluate our own characteristics." Interplay, Chapter 3, p. 72.',

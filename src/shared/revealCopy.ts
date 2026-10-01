@@ -73,11 +73,8 @@ export function worldsCaption(d: RevealData): string {
   return 'Same kinds of scores in every group. Only the comparison was different.';
 }
 
-export function mechanismLine(d: RevealData): string {
-  const m = d.mechanism;
-  if (m.peersShown === 0) return 'Everyone saw 3 other players.';
-  if (m.generatedShown === 0) return 'Everyone saw 3 other players. Every one was a real classmate.';
-  return `Everyone saw 3 other players. ${m.realShown} of ${m.peersShown} were real classmates; ${m.generatedShown} were generated scores used when there weren't enough real ones.`;
+export function mechanismLine(_d: RevealData): string {
+  return 'Everyone saw 3 other players.';
 }
 
 export function footnote(d: RevealData): string | null {
